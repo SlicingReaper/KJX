@@ -918,6 +918,7 @@ function zoom(kind) {
     flying = true;
     camera.flyTo({ destination: HOME, duration: 1.5, complete: () => (flying = false), cancel: () => (flying = false) });
   }
+  if (kind === 'panel') togglePanel();
   if (kind === 'north') camera.flyTo({ destination: camera.position.clone(), orientation: { heading: 0, pitch: camera.pitch, roll: 0 }, duration: 0.8 });
 }
 document.addEventListener('keydown', (ev) => {
@@ -927,6 +928,7 @@ document.addEventListener('keydown', (ev) => {
   if (ev.key === '-') zoom('out');
   if (ev.key === 'h' || ev.key === 'H') zoom('home');
   if (ev.key === 'n' || ev.key === 'N') zoom('north');
+  if (ev.key === 'p' || ev.key === 'P') togglePanel();
 });
 
 const handler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
@@ -1036,6 +1038,47 @@ if (window.kjxOffline) {
     renderOffline();
   });
   window.kjxOffline.status().then((s) => ((offStatus = s), renderOffline()));
+}
+
+// ───────────────────────── window chrome ─────────────────────────
+function togglePanel(force) {
+  const hide = force ?? !document.body.classList.contains('nopanel');
+  document.body.classList.toggle('nopanel', hide);
+  const b = $('#panel-toggle');
+  b.textContent = hide ? '⇤' : '⇥';
+  b.title = hide ? 'Show sidebar (P)' : 'Hide sidebar for a clean view (P)';
+  try { localStorage.setItem('kjx.nopanel', hide ? '1' : ''); } catch {}
+}
+try { if (localStorage.getItem('kjx.nopanel')) togglePanel(true); } catch {}
+
+// Top bar: only in the desktop app and only when windowed. Slides in when the cursor reaches the
+// top edge (so you can drag the window), hides again once you move away.
+if (window.kjxApp) {
+  document.body.classList.add('desktop');
+  let shown = false, hideTimer = null;
+  const setBar = (v) => {
+    if (v === shown) return;
+    shown = v;
+    document.body.classList.toggle('topbar-on', v);
+    window.kjxApp.setTopBar(v);
+  };
+  window.addEventListener('mousemove', (ev) => {
+    if (document.body.classList.contains('fullscreen')) return;
+    if (ev.clientY <= 14) {
+      clearTimeout(hideTimer);
+      hideTimer = null;
+      setBar(true);
+    } else if (shown && ev.clientY > 48 && !hideTimer) {
+      hideTimer = setTimeout(() => ((hideTimer = null), setBar(false)), 450);
+    }
+  }, { capture: true, passive: true });
+  document.addEventListener('mouseleave', () => shown && (hideTimer ??= setTimeout(() => ((hideTimer = null), setBar(false)), 900)));
+  const setFs = (fs) => {
+    document.body.classList.toggle('fullscreen', fs);
+    if (fs) setBar(false);
+  };
+  window.kjxApp.onFullscreen(setFs);
+  window.kjxApp.isFullscreen().then(setFs);
 }
 
 // ───────────────────────── boot ─────────────────────────

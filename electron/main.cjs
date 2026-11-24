@@ -19,9 +19,12 @@ function createWindow() {
     title: 'KJX',
     backgroundColor: '#0a1420',
     titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 14, y: 14 },
+    trafficLightPosition: { x: 14, y: 11 },
     webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, 'preload.cjs') },
   });
+  win.setWindowButtonVisibility(false); // traffic lights appear with the auto-hiding top bar
+  win.on('enter-full-screen', () => win.webContents.send('ui:fullscreen', true));
+  win.on('leave-full-screen', () => { win.webContents.send('ui:fullscreen', false); win.setWindowButtonVisibility(false); });
   win.loadURL('kjx://app/index.html');
   // Open Wikipedia / Wikidata / Maps links in the real browser.
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -44,6 +47,8 @@ app.whenReady().then(() => {
   ipcMain.handle('offline:cancelArea', () => offline.cancelArea());
   offline.onUpdate((st) => BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('offline:update', st)));
   app.on('before-quit', () => { offline.flush(); });
+  ipcMain.on('ui:topbar', (e, v) => { const w = BrowserWindow.fromWebContents(e.sender); if (w && !w.isFullScreen()) w.setWindowButtonVisibility(v); });
+  ipcMain.handle('ui:isFullscreen', (e) => BrowserWindow.fromWebContents(e.sender)?.isFullScreen() ?? false);
 
   protocol.handle('kjx', (req) => {
     const { pathname } = new URL(req.url);

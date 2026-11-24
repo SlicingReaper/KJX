@@ -9,6 +9,8 @@
   <body>
     <div id="globe"></div>
 
+    <div id="topbar" aria-hidden="true"><span class="glow">KJX</span><span class="dim">//</span>GLOBE <span class="dim">· drag to move window</span></div>
+
     <header id="brand">
       <div class="logo">KJX<span>//</span>GLOBE</div>
       <div class="tag">WRECK · CRASH · TREASURE INDEX</div>
@@ -21,6 +23,7 @@
       <button data-zoom="out" title="Zoom out (−)">−</button>
       <button data-zoom="home" title="Whole globe (H)">⌂</button>
       <button data-zoom="north" title="Face north (N)">N</button>
+      <button data-zoom="panel" id="panel-toggle" title="Hide sidebar for a clean view (P)">⇥</button>
     </div>
 
     <div id="tooltip" class="term" hidden></div>

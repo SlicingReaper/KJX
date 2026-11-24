@@ -209,3 +209,21 @@ input[type='number']:focus, input[type='date']:focus, select:focus { border-colo
 .tbtn:disabled { opacity: 0.35; cursor: default; }
 .offtag { margin-left: auto; font-size: 8.5px; letter-spacing: 1px; color: var(--dim); border: 1px solid rgba(93,122,153,.4); padding: 1px 4px; }
 #netstate.off { color: var(--amber); }
+
+/* auto-hiding top bar (desktop app, windowed): drag region for moving the window */
+#topbar { position: absolute; top: 0; left: 0; right: 0; height: 34px; z-index: 30; display: none; align-items: center; justify-content: center; gap: 2px;
+  font-size: 10px; letter-spacing: 3px; color: var(--text); background: rgba(4, 9, 20, 0.92); border-bottom: 1px solid var(--edge);
+  box-shadow: 0 0 18px rgba(62, 240, 255, 0.15); backdrop-filter: blur(22px); -webkit-app-region: drag; user-select: none;
+  transform: translateY(-100%); transition: transform 0.18s ease; }
+#topbar .dim { margin: 0 6px; letter-spacing: 1.5px; }
+body.desktop:not(.fullscreen) #topbar { display: flex; }
+body.topbar-on #topbar { transform: translateY(0); }
+
+/* sidebar toggle: clean view */
+#panel, #globe, #zoom { transition: transform 0.25s ease, right 0.25s ease; }
+body.nopanel #panel { transform: translateX(100%); box-shadow: none; }
+body.nopanel #globe { right: 0; }
+body.nopanel #zoom { right: 18px; }
+#panel-toggle { font-size: 15px; }
+#brand { transition: top 0.18s ease; }
+body.topbar-on #brand { top: 46px; }
