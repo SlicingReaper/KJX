@@ -6,42 +6,85 @@ import { GLOBE_GROUPS, findGlobe, ROUTES } from './globes.js';
 window.CESIUM_BASE_URL = CESIUM_BASE_URL;
 
 // ───────────────────────── constants ─────────────────────────
+// Palette follows the terminal-cyan widget scheme.
 const CATS = {
-  ship: { label: 'Ships', one: 'Ship', color: '#4fc3f7' },
-  submarine: { label: 'Submarines', one: 'Submarine', color: '#9c7bff' },
-  aircraft: { label: 'Aircraft', one: 'Aircraft', color: '#ff7a45' },
-  spacecraft: { label: 'Spacecraft', one: 'Spacecraft', color: '#e0e6ee' },
-  treasure: { label: 'Treasure & hoards', one: 'Treasure / hoard', color: '#f5c542' },
-  city: { label: 'Sunken & lost cities', one: 'Sunken / lost city', color: '#5ad17a' },
+  ship: { label: 'Ships', one: 'Ship', color: '#3ef0ff' },
+  submarine: { label: 'Submarines', one: 'Submarine', color: '#8b6dff' },
+  aircraft: { label: 'Aircraft', one: 'Aircraft', color: '#ffb84d' },
+  spacecraft: { label: 'Spacecraft', one: 'Spacecraft', color: '#eaf6ff' },
+  treasure: { label: 'Treasure & hoards', one: 'Treasure / hoard', color: '#ffd84f' },
+  city: { label: 'Sunken & lost cities', one: 'Sunken / lost city', color: '#3dff7f' },
+  vehicle: { label: 'Cars, trains & tanks', one: 'Land vehicle', color: '#ff5f6d' },
+};
+const SOURCES = {
+  curated: { label: 'KJX curated files', color: '#3ef0ff' },
+  wikidata: { label: 'Wikidata', color: '#1f8fff' },
+  noaa: { label: 'NOAA nautical charts', color: '#8ec9ff' },
+  osm: { label: 'OpenStreetMap', color: '#7fdbff' },
 };
 const VERACITY = {
-  confirmed: { label: 'Confirmed', color: '#3ddc84' },
-  disputed: { label: 'Disputed', color: '#ffd23f' },
+  confirmed: { label: 'Confirmed', color: '#3dff7f' },
+  disputed: { label: 'Disputed', color: '#ffd84f' },
   legend: { label: 'Legend', color: '#b388ff' },
-  myth: { label: 'Myth', color: '#ff6bcb' },
+  myth: { label: 'Myth', color: '#ff5ad9' },
 };
 const STATUS = {
-  found: { label: 'Found' },
-  salvaged: { label: 'Salvaged' },
-  partial: { label: 'Partly found' },
-  lost: { label: 'Still lost' },
+  found: { label: 'Found', color: '#3dff7f' },
+  salvaged: { label: 'Salvaged', color: '#1f8fff' },
+  partial: { label: 'Partly found', color: '#ffb84d' },
+  lost: { label: 'Still lost', color: '#ff5f6d' },
 };
-// Colour of the estimated-area overlay when something is selected.
 function areaColor(e) {
-  if (e.veracity === 'myth') return '#ff6bcb';
+  if (e.veracity === 'myth') return '#ff5ad9';
   if (e.veracity === 'legend') return '#b388ff';
-  if (e.veracity === 'disputed') return '#ffd23f';
-  if (e.status === 'lost') return '#ff5a4f';
-  if (e.status === 'partial') return '#ff9f43';
-  return '#3ddc84';
+  if (e.veracity === 'disputed') return '#ffd84f';
+  if (e.status === 'lost') return '#ff5f6d';
+  if (e.status === 'partial') return '#ffb84d';
+  return '#3dff7f';
 }
 const AREA_LEGEND = [
-  ['#3ddc84', 'Confirmed & found / salvaged'],
-  ['#ff9f43', 'Confirmed, partly found'],
-  ['#ff5a4f', 'Confirmed, still lost'],
-  ['#ffd23f', 'Disputed'],
+  ['#3dff7f', 'Confirmed · found / salvaged'],
+  ['#ffb84d', 'Confirmed · partly found'],
+  ['#ff5f6d', 'Confirmed · still lost'],
+  ['#ffd84f', 'Disputed'],
   ['#b388ff', 'Legend'],
-  ['#ff6bcb', 'Myth'],
+  ['#ff5ad9', 'Myth'],
+];
+const ERAS = [
+  ['All time', -15000, 2026],
+  ['Ancient', -15000, 499],
+  ['Medieval', 500, 1491],
+  ['Age of Sail', 1492, 1850],
+  ['1851–1913', 1851, 1913],
+  ['WWI', 1914, 1918],
+  ['WWII', 1939, 1945],
+  ['Modern', 1946, 2026],
+];
+const DEFAULT_FILTERS = () => ({
+  cats: new Set(Object.keys(CATS)),
+  veracity: new Set(Object.keys(VERACITY)),
+  status: new Set(Object.keys(STATUS)),
+  treasure: 'all',
+  sources: new Set(Object.keys(SOURCES)),
+  yearMin: -15000,
+  yearMax: 2026,
+  undated: true,
+  text: '',
+  syncHistory: false,
+  hasImage: false,
+  namedOnly: false,
+});
+const PRESETS = [
+  { id: 'all', name: 'Everything', hint: 'clear all filters', apply: () => ({}) },
+  { id: 'unfound', name: '★ Unfound treasure', hint: 'treasure, still lost', apply: () => ({ treasure: 'yes', status: new Set(['lost', 'partial']) }) },
+  { id: 'myths', name: 'Myths & legends', hint: 'unproven stories', apply: () => ({ veracity: new Set(['myth', 'legend', 'disputed']) }) },
+  { id: 'missing-air', name: 'Missing aircraft', hint: 'never found', apply: () => ({ cats: new Set(['aircraft']), status: new Set(['lost', 'partial']) }) },
+  { id: 'sail', name: 'Age of Sail ships', hint: '1492 – 1850', apply: () => ({ cats: new Set(['ship']), yearMin: 1492, yearMax: 1850, undated: false }) },
+  { id: 'ww2', name: 'World War II', hint: '1939 – 1945', apply: () => ({ yearMin: 1939, yearMax: 1945, undated: false }) },
+  { id: 'subs', name: 'Submarines', hint: 'all eras', apply: () => ({ cats: new Set(['submarine']) }) },
+  { id: 'vehicles', name: 'Cars, trains & tanks', hint: 'land vehicles', apply: () => ({ cats: new Set(['vehicle']) }) },
+  { id: 'named', name: 'Named wrecks only', hint: 'hide unnamed charted', apply: () => ({ namedOnly: true }) },
+  { id: 'curated', name: 'Curated files', hint: 'full KJX detail', apply: () => ({ sources: new Set(['curated']) }) },
 ];
 
 // ───────────────────────── state ─────────────────────────
@@ -50,32 +93,23 @@ const state = {
   modisDate: isoDaysAgo(3),
   paleoModel: 'MULLER2019',
   overlays: { labels: true, grid: false, routes: false, oceanRef: false },
-  filters: {
-    cats: new Set(Object.keys(CATS)),
-    veracity: new Set(Object.keys(VERACITY)),
-    status: new Set(Object.keys(STATUS)),
-    treasure: 'all',
-    source: 'all',
-    yearMin: -15000,
-    yearMax: 2026,
-    undated: true,
-    text: '',
-    syncHistory: false,
-    hasImage: false,
-  },
+  filters: DEFAULT_FILTERS(),
+  preset: 'all',
+  open: new Set(['g0', 'presets', 'type', 'truth', 'status']),
   selected: null,
 };
 let entries = [];
 let historyYear = null;
 let deepTime = false;
+let facetCounts = { cats: {}, veracity: {}, status: {}, sources: {} };
 
 function isoDaysAgo(n) {
-  const d = new Date(Date.now() - n * 864e5);
-  return d.toISOString().slice(0, 10);
+  return new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
 }
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const fmtYear = (y) => (y === undefined || y === null || y === '' ? '' : (y = String(y)).startsWith('-') ? `${y.slice(1).split('-')[0]} BC` : y);
+const num = (n) => (n ?? 0).toLocaleString('en-US');
 function fmtDate(d) {
   if (d === undefined || d === null) return '';
   const s = String(d);
@@ -85,6 +119,8 @@ function fmtDate(d) {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   return `${m[3] ? +m[3] + ' ' : ''}${months[+m[2] - 1]} ${m[1]}`;
 }
+const BRACKETS = '<i class="brk tl"></i><i class="brk tr"></i><i class="brk bl"></i><i class="brk br"></i>';
+document.querySelectorAll('.term').forEach((el) => el.insertAdjacentHTML('afterbegin', BRACKETS));
 
 // ───────────────────────── viewer ─────────────────────────
 const viewer = new Cesium.Viewer('globe', {
@@ -100,25 +136,113 @@ const viewer = new Cesium.Viewer('globe', {
   infoBox: false,
   selectionIndicator: false,
   terrainProvider: new Cesium.EllipsoidTerrainProvider(),
-  requestRenderMode: false,
 });
 const scene = viewer.scene;
-scene.globe.baseColor = Cesium.Color.fromCssColorString('#0b2236');
-scene.globe.enableLighting = false;
+const camera = viewer.camera;
+const OCEAN = Cesium.Color.fromCssColorString('#0b2236');
+scene.globe.baseColor = OCEAN;
 scene.fog.enabled = false;
-scene.skyAtmosphere.show = true;
 scene.screenSpaceCameraController.minimumZoomDistance = 150;
 scene.screenSpaceCameraController.maximumZoomDistance = 4e7;
-viewer.cesiumWidget.creditContainer.style.display = 'block';
-viewer.camera.setView({ destination: Cesium.Cartesian3.fromDegrees(-30, 25, 2.2e7) });
+const HOME = Cesium.Cartesian3.fromDegrees(-30, 25, 2.2e7);
+camera.setView({ destination: HOME });
 
-const points = scene.primitives.add(new Cesium.PointPrimitiveCollection());
+// Markers live in one PointPrimitiveCollection per 10°×10° map cell. Each frame we only decide which
+// *cells* face the camera (a few hundred cheap sphere tests) and hide whole cells behind the Earth —
+// no per-marker work while you spin the globe, and the far side isn't drawn at all.
+const markerRoot = scene.primitives.add(new Cesium.PrimitiveCollection());
+const cells = new Map();
 const historyLabels = scene.primitives.add(new Cesium.LabelCollection());
 let baseLayers = [];
 let overlayLayers = {};
 let vectorSource = null;
 let routeEntities = [];
 let areaEntities = [];
+scene.msaaSamples = 1; // points are anti-aliased in their shader; MSAA only costs frame time here
+scene.globe.tileCacheSize = 1000; // keep more imagery tiles around so spinning back doesn't re-fetch
+scene.globe.preloadSiblings = true;
+
+// ───────────────────────── input tracking ─────────────────────────
+let lastInput = performance.now();
+const touch = () => {
+  lastInput = performance.now();
+  if (autoSpin) stopSpin();
+};
+for (const ev of ['pointerdown', 'pointermove', 'wheel', 'keydown', 'touchstart']) window.addEventListener(ev, touch, { passive: true, capture: true });
+
+// ───────────────────────── camera: re-centre after zooming out ─────────────────────────
+// After flying into a wreck the camera is tilted. When *you* zoom back out past ~2,500 km it eases
+// back to looking straight down, north up, so the Earth sits centred. It only runs for 1.5 s after
+// your last input — it never moves the camera on its own.
+let flying = false;
+const screenCenter = new Cesium.Cartesian2();
+scene.preRender.addEventListener(() => {
+  if (flying || autoSpin || performance.now() - lastInput > 1500) return;
+  const h = camera.positionCartographic.height;
+  if (h < 2.5e6) return;
+  const dPitch = -Cesium.Math.PI_OVER_TWO - camera.pitch;
+  if (Math.abs(dPitch) < 0.01) return; // already looking straight down (heading is meaningless there)
+  const dHead = Cesium.Math.negativePiToPi(-camera.heading);
+  screenCenter.x = scene.canvas.clientWidth / 2;
+  screenCenter.y = scene.canvas.clientHeight / 2;
+  const target = camera.pickEllipsoid(screenCenter) || Cesium.Ellipsoid.WGS84.scaleToGeodeticSurface(camera.positionWC, new Cesium.Cartesian3());
+  if (!target) return;
+  const range = Cesium.Cartesian3.distance(camera.positionWC, target);
+  const k = Math.min(0.35, 0.08 + ((h - 2.5e6) / 6e6) * 0.3);
+  const pitch = Math.max(-Cesium.Math.PI_OVER_TWO + 1e-4, camera.pitch + dPitch * k);
+  camera.lookAt(target, new Cesium.HeadingPitchRange(camera.heading + dHead * k, pitch, range));
+  camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+  lastInput = performance.now() - 1000; // keep easing a little longer once started
+});
+
+// ───────────────────────── idle spin ─────────────────────────
+// Only at the home view (whole globe, nothing selected) after 5 minutes without any input.
+const IDLE_MS = 5 * 60 * 1000;
+let autoSpin = false;
+function stopSpin() {
+  autoSpin = false;
+}
+scene.preRender.addEventListener((_, time) => {
+  if (!autoSpin) {
+    if (performance.now() - lastInput < IDLE_MS || state.selected || flying) return;
+    if (camera.positionCartographic.height < 1.5e7) return;
+    autoSpin = true;
+  }
+  camera.rotate(Cesium.Cartesian3.UNIT_Z, -0.0006); // ~1 revolution / 3 min at 60 fps
+});
+
+// ───────────────────────── cell culling ─────────────────────────
+const earth = new Cesium.BoundingSphere(Cesium.Cartesian3.ZERO, Cesium.Ellipsoid.WGS84.minimumRadius);
+const lastCam = new Cesium.Cartesian3();
+let cullDirty = true;
+function cull() {
+  const pos = camera.positionWC;
+  if (!cullDirty && Cesium.Cartesian3.equalsEpsilon(pos, lastCam, 0, 1)) return;
+  Cesium.Cartesian3.clone(pos, lastCam);
+  cullDirty = false;
+  const occ = new Cesium.Occluder(earth, pos);
+  for (const c of cells.values()) c.coll.show = c.visible > 0 && occ.isBoundingSphereVisible(c.sphere);
+}
+scene.preRender.addEventListener(cull);
+camera.moveStart.addEventListener(() => ($('#tooltip').hidden = true));
+
+// ───────────────────────── HUD ─────────────────────────
+let hudTimer = 0;
+const hudSpans = [];
+scene.postRender.addEventListener(() => {
+  const now = performance.now();
+  if (now - hudTimer < 150) return;
+  hudTimer = now;
+  if (!hudSpans.length) {
+    $('#hud').insertAdjacentHTML('beforeend', '<span>LAT <b></b></span><span>LON <b></b></span><span>ALT <b></b></span>');
+    hudSpans.push(...$('#hud').querySelectorAll('span b'));
+  }
+  const c = camera.positionCartographic;
+  const alt = c.height / 1000;
+  hudSpans[0].textContent = Cesium.Math.toDegrees(c.latitude).toFixed(2);
+  hudSpans[1].textContent = Cesium.Math.toDegrees(c.longitude).toFixed(2);
+  hudSpans[2].textContent = `${alt >= 100 ? num(Math.round(alt)) : alt.toFixed(1)} KM`;
+});
 
 // ───────────────────────── globes ─────────────────────────
 function tileProvider(g) {
@@ -139,14 +263,14 @@ async function setGlobe(id) {
   historyLabels.removeAll();
   historyYear = null;
   deepTime = false;
+  scene.globe.baseColor = OCEAN;
 
   const addBase = (provider, tint, index = 0) => {
     const layer = viewer.imageryLayers.addImageryProvider(provider, index);
     if (tint) Object.assign(layer, tint);
     baseLayers.push(layer);
-    return layer;
   };
-
+  renderGlobes();
   if (g.kind === 'tiles') {
     addBase(tileProvider(g), g.tint);
     if (g.overlay) addBase(new Cesium.UrlTemplateImageryProvider({ url: g.overlay, maximumLevel: 13 }), null, 1);
@@ -154,7 +278,6 @@ async function setGlobe(id) {
     addBase(new Cesium.WebMapServiceImageryProvider({ url: g.url, layers: g.layers, parameters: { format: 'image/jpeg', transparent: false }, credit: new Cesium.Credit(g.credit) }));
   } else if (g.kind === 'history') {
     historyYear = g.year;
-    // Muted relief underneath, tinted like an old atlas.
     addBase(new Cesium.UrlTemplateImageryProvider({ url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}', maximumLevel: 13, credit: new Cesium.Credit('Esri') }), { saturation: 0.3, brightness: 1.05, hue: 0.06 });
     await loadHistory(g);
   } else if (g.kind === 'paleo') {
@@ -162,8 +285,8 @@ async function setGlobe(id) {
     await loadPaleo(g);
   }
   orderOverlays();
+  markerRoot.show = !deepTime;
   applyFilters();
-  renderGlobes();
 }
 
 const hashColor = (name) => {
@@ -173,7 +296,7 @@ const hashColor = (name) => {
 };
 
 async function loadHistory(g) {
-  setBusy(`Loading the world in ${g.name}…`);
+  setBusy(`> LOADING THE WORLD IN ${g.name.toUpperCase()}_`);
   try {
     const url = `https://raw.githubusercontent.com/aourednik/historical-basemaps/master/geojson/${g.file}`;
     const ds = await Cesium.GeoJsonDataSource.load(url, { stroke: Cesium.Color.fromCssColorString('#3a2a14'), strokeWidth: 1, fill: Cesium.Color.TRANSPARENT });
@@ -185,8 +308,7 @@ async function loadHistory(g) {
       ent.polygon.material = name ? hashColor(name) : Cesium.Color.TRANSPARENT;
       ent.polygon.outline = false;
       if (!name) continue;
-      const positions = ent.polygon.hierarchy.getValue(Cesium.JulianDate.now()).positions;
-      const sphere = Cesium.BoundingSphere.fromPoints(positions);
+      const sphere = Cesium.BoundingSphere.fromPoints(ent.polygon.hierarchy.getValue(Cesium.JulianDate.now()).positions);
       const prev = best.get(name);
       if (!prev || sphere.radius > prev.radius) best.set(name, sphere);
     }
@@ -215,12 +337,11 @@ async function loadHistory(g) {
 }
 
 async function loadPaleo(g) {
-  setBusy(`Rewinding plate tectonics to ${g.ma} million years ago…`);
+  setBusy(`> REWINDING PLATE TECTONICS ${g.ma} MILLION YEARS_`);
   scene.globe.baseColor = Cesium.Color.fromCssColorString('#1d4f7a');
   try {
     const model = GLOBE_GROUPS.find((x) => x.models).models.find((m) => m.id === state.paleoModel);
-    const ma = Math.min(g.ma, model.maxMa);
-    const url = `https://gws.gplates.org/reconstruct/coastlines/?time=${ma}&model=${state.paleoModel}&avoid_map_boundary`;
+    const url = `https://gws.gplates.org/reconstruct/coastlines/?time=${Math.min(g.ma, model.maxMa)}&model=${state.paleoModel}&avoid_map_boundary`;
     const ds = await Cesium.GeoJsonDataSource.load(url, { fill: Cesium.Color.fromCssColorString('#c9b27c'), stroke: Cesium.Color.fromCssColorString('#7a6338'), strokeWidth: 1 });
     if (state.globe !== g.id) return;
     for (const ent of ds.entities.values) if (ent.polygon) ent.polygon.outline = false;
@@ -232,9 +353,6 @@ async function loadPaleo(g) {
   } finally {
     setBusy(null);
   }
-}
-function restoreBaseColor() {
-  scene.globe.baseColor = Cesium.Color.fromCssColorString('#0b2236');
 }
 
 function setOverlay(key, on) {
@@ -253,7 +371,7 @@ function setOverlay(key, on) {
             name: r.name,
             polyline: {
               positions: Cesium.Cartesian3.fromDegreesArray(r.pts.flat()),
-              width: 2.5,
+              width: 2,
               material: new Cesium.PolylineDashMaterialProperty({ color: Cesium.Color.fromCssColorString(r.color).withAlpha(0.85), dashLength: 18 }),
               arcType: Cesium.ArcType.GEODESIC,
             },
@@ -262,24 +380,22 @@ function setOverlay(key, on) {
     return;
   }
   if (!on) return;
-  if (key === 'labels') overlayLayers.labels = viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider({ url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', maximumLevel: 19, credit: new Cesium.Credit('Esri') }));
-  if (key === 'grid') overlayLayers.grid = viewer.imageryLayers.addImageryProvider(new Cesium.GridImageryProvider({ color: Cesium.Color.WHITE.withAlpha(0.25), glowColor: Cesium.Color.TRANSPARENT, cells: 2 }));
-  if (key === 'oceanRef') overlayLayers.oceanRef = viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider({ url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}', maximumLevel: 13, credit: new Cesium.Credit('Esri') }));
+  const tile = (url, max) => new Cesium.UrlTemplateImageryProvider({ url, maximumLevel: max, credit: new Cesium.Credit('Esri') });
+  if (key === 'labels') overlayLayers.labels = viewer.imageryLayers.addImageryProvider(tile('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', 19));
+  if (key === 'grid') overlayLayers.grid = viewer.imageryLayers.addImageryProvider(new Cesium.GridImageryProvider({ color: Cesium.Color.fromCssColorString('#3ef0ff').withAlpha(0.3), glowColor: Cesium.Color.TRANSPARENT, cells: 2 }));
+  if (key === 'oceanRef') overlayLayers.oceanRef = viewer.imageryLayers.addImageryProvider(tile('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}', 13));
 }
 function orderOverlays() {
-  if (!deepTime) restoreBaseColor();
-  // Labels/grid stay on top of whichever base is active; labels hidden in deep time and on labelled bases.
   const g = findGlobe(state.globe);
+  const hasOwnLabels = g.overlay || g.kind === 'history' || g.labels === false || ['natgeo', 'osm', 'osm-de', 'topo', 'physical', 'antique'].includes(g.id);
   for (const key of ['oceanRef', 'grid', 'labels']) {
-    const want = state.overlays[key] && !(deepTime && key !== 'grid') && !(key === 'labels' && (g.overlay || g.kind === 'history' || g.labels === false || ['natgeo','osm','osm-de','topo','physical'].includes(g.id)));
+    const want = state.overlays[key] && !(deepTime && key !== 'grid') && !(key === 'labels' && hasOwnLabels);
     if (overlayLayers[key]) {
       viewer.imageryLayers.remove(overlayLayers[key], true);
       delete overlayLayers[key];
     }
     if (want) {
-      const keep = state.overlays[key];
       setOverlay(key, true);
-      state.overlays[key] = keep;
     }
   }
 }
@@ -288,56 +404,103 @@ function orderOverlays() {
 async function loadData() {
   const res = await fetch('data/kjx.json');
   entries = await res.json();
+  const ring = Cesium.Color.fromCssColorString('#ffd84f');
+  const colors = {};
+  const scaler = new Cesium.NearFarScalar(1.5e5, 1.4, 3e7, 0.6);
+  const nearOnly = new Cesium.DistanceDisplayCondition(0, 4e6);
   entries.forEach((e, i) => {
     e._i = i;
+    // the data file omits default values to stay small
+    e.veracity ??= 'confirmed';
+    e.status ??= 'found';
+    e.treasure ??= false;
+    e.radiusKm ??= 0.2;
+    e.source ??= 'wikidata';
     const cat = CATS[e.category] || CATS.ship;
     const curated = e.source === 'curated';
-    e._point = points.add({
-      position: Cesium.Cartesian3.fromDegrees(e.lon, e.lat, 30),
-      color: Cesium.Color.fromCssColorString(cat.color).withAlpha(e.veracity === 'myth' || e.veracity === 'legend' ? 0.75 : curated ? 1 : 0.8),
-      pixelSize: curated ? 9 : 5,
-      outlineColor: e.treasure ? Cesium.Color.fromCssColorString('#f5c542') : Cesium.Color.fromCssColorString('#04101c').withAlpha(0.8),
-      outlineWidth: e.treasure ? 2.5 : 1,
-      scaleByDistance: new Cesium.NearFarScalar(2e5, 1.5, 2e7, curated ? 0.85 : 0.6),
+    const ck = Math.floor((e.lat + 90) / 10) * 36 + Math.floor((e.lon + 180) / 10);
+    let cell = cells.get(ck);
+    if (!cell) {
+      cell = { coll: markerRoot.add(new Cesium.PointPrimitiveCollection()), positions: [], visible: 0 };
+      cells.set(ck, cell);
+    }
+    e._cell = cell;
+    const pos = Cesium.Cartesian3.fromDegrees(e.lon, e.lat, 0);
+    cell.positions.push(pos);
+    const ckey = cat.color + (curated ? 1 : 0.75);
+    const unnamed = e.name.startsWith('Charted') || e.name.startsWith('Unnamed');
+    // Flat, crisp dots: no dark outline; only a thin gold ring marks treasure.
+    e._point = cell.coll.add({
+      position: pos,
+      color: (colors[ckey] ??= Cesium.Color.fromCssColorString(cat.color).withAlpha(curated ? 1 : 0.75)),
+      pixelSize: curated ? 7 : unnamed ? 3 : 4,
+      outlineColor: ring,
+      outlineWidth: e.treasure && e.category !== 'treasure' ? 1.5 : 0,
+      scaleByDistance: scaler,
+      // unnamed charted wrecks only appear once you zoom in (keeps the whole-globe view fast & readable)
+      distanceDisplayCondition: unnamed ? nearOnly : undefined,
       id: { kjx: i },
     });
     e._search = [e.name, e.type, e.country, e.summary, e.operator, e.aircraft].filter(Boolean).join(' ').toLowerCase();
   });
+  for (const c of cells.values()) {
+    // pad the sphere so markers right at the horizon don't pop
+    c.sphere = Cesium.BoundingSphere.fromPoints(c.positions);
+    c.sphere.radius += 20000;
+    delete c.positions;
+  }
 }
 
-function passes(e, f, ignoreText = false) {
-  if (!f.cats.has(e.category)) return false;
-  if (!f.veracity.has(e.veracity)) return false;
-  if (!f.status.has(e.status)) return false;
-  if (f.treasure === 'yes' && !e.treasure) return false;
-  if (f.treasure === 'no' && e.treasure) return false;
-  if (f.source === 'curated' && e.source !== 'curated') return false;
-  if (f.hasImage && !e.image && !e.wiki) return false;
+// Returns which filter groups an entry fails: 0 = passes; bit 1 cats, 2 veracity, 4 status, 16 source, 8 anything else.
+function failMask(e, f) {
+  let m = 0;
+  if (!f.cats.has(e.category)) m |= 1;
+  if (!f.veracity.has(e.veracity)) m |= 2;
+  if (!f.status.has(e.status)) m |= 4;
+  if ((f.treasure === 'yes' && !e.treasure) || (f.treasure === 'no' && e.treasure)) return m | 8;
+  if (!f.sources.has(e.source)) m |= 16;
+  if (f.namedOnly && (e.name.startsWith('Charted') || e.name.startsWith('Unnamed'))) return m | 8;
+  if (f.hasImage && !e.image && !e.wiki) return m | 8;
   const y = e.lostYear;
   if (y === undefined || y === null) {
-    if (!f.undated) return false;
-  } else if (y < f.yearMin || y > f.yearMax) return false;
-  if (f.syncHistory && historyYear !== null && !(y !== undefined && y <= historyYear)) return false;
-  if (!ignoreText && f.text && !e._search.includes(f.text)) return false;
-  return true;
+    if (!f.undated) return m | 8;
+  } else if (y < f.yearMin || y > f.yearMax) return m | 8;
+  if (f.syncHistory && historyYear !== null && !(y !== undefined && y <= historyYear)) return m | 8;
+  if (f.text && !e._search.includes(f.text)) return m | 8;
+  return m;
 }
 
+function setVis(e, v) {
+  e._vis = v;
+  if (e._point.show !== v) e._point.show = v;
+  if (v) e._cell.visible++;
+}
 let visibleCount = 0;
 function applyFilters() {
   const f = state.filters;
   visibleCount = 0;
   let treasure = 0;
+  const fc = { cats: {}, veracity: {}, status: {}, sources: {} };
+  for (const c of cells.values()) c.visible = 0;
   for (const e of entries) {
-    const show = !deepTime && passes(e, f);
-    e._point.show = show;
-    if (show) {
+    const m = failMask(e, f);
+    // Facet counts: how many you'd get by ticking that option, given all the *other* filters.
+    if (m === 0 || m === 1) fc.cats[e.category] = (fc.cats[e.category] || 0) + 1;
+    if (m === 0 || m === 2) fc.veracity[e.veracity] = (fc.veracity[e.veracity] || 0) + 1;
+    if (m === 0 || m === 4) fc.status[e.status] = (fc.status[e.status] || 0) + 1;
+    if (m === 0 || m === 16) fc.sources[e.source] = (fc.sources[e.source] || 0) + 1;
+    setVis(e, (m === 0 || e === state.selected) && !deepTime);
+    if (m === 0) {
       visibleCount++;
       if (e.treasure) treasure++;
     }
   }
-  $('#stats').textContent = deepTime
-    ? `Deep time view — ${entries.length.toLocaleString()} markers hidden`
-    : `Showing ${visibleCount.toLocaleString()} of ${entries.length.toLocaleString()} · ${treasure.toLocaleString()} with treasure`;
+  facetCounts = fc;
+  cullDirty = true;
+  $('#stats').innerHTML = deepTime
+    ? `<span>DEEP TIME · MARKERS HIDDEN</span><span>${num(entries.length)} LOADED</span>`
+    : `<span>SHOWING <b>${num(visibleCount)}</b> / ${num(entries.length)}</span><span class="gold">★ ${num(treasure)}</span>`;
+  updateFilterCounts();
   renderList();
 }
 
@@ -348,7 +511,19 @@ function clearArea() {
 }
 
 function select(e, fly = true) {
+  const prev = state.selected;
   state.selected = e;
+  if (prev && prev !== e && failMask(prev, state.filters) !== 0) {
+    prev._vis = false;
+    prev._point.show = false;
+  }
+  if (e && !e._vis && !deepTime) {
+    e._vis = true;
+    e._point.show = true;
+    e._cell.visible++;
+  }
+  cullDirty = true;
+  $('#tooltip').hidden = true;
   clearArea();
   if (!e) {
     $('#detail').hidden = true;
@@ -358,8 +533,7 @@ function select(e, fly = true) {
   const center = Cesium.Cartesian3.fromDegrees(e.lon, e.lat);
   const color = Cesium.Color.fromCssColorString(areaColor(e));
   // Concentric rings: most likely in the middle, fading towards the edge of the estimated area.
-  const rings = [1, 0.66, 0.33];
-  rings.forEach((f, k) => {
+  [1, 0.66, 0.33].forEach((f, k) => {
     areaEntities.push(
       viewer.entities.add({
         position: center,
@@ -367,10 +541,9 @@ function select(e, fly = true) {
           semiMajorAxis: r * f,
           semiMinorAxis: r * f,
           height: 20 + k * 10,
-          material: color.withAlpha(0.12 + k * 0.08),
+          material: color.withAlpha(0.1 + k * 0.08),
           outline: true,
-          outlineColor: color.withAlpha(k === 0 ? 0.95 : 0.5),
-          outlineWidth: 2,
+          outlineColor: color.withAlpha(k === 0 ? 0.95 : 0.45),
         },
       }),
     );
@@ -378,60 +551,65 @@ function select(e, fly = true) {
   areaEntities.push(
     viewer.entities.add({
       position: Cesium.Cartesian3.fromDegrees(e.lon, e.lat, 40),
-      point: { pixelSize: 12, color, outlineColor: Cesium.Color.WHITE, outlineWidth: 2, disableDepthTestDistance: Number.POSITIVE_INFINITY },
+      point: { pixelSize: 10, color, outlineColor: Cesium.Color.fromCssColorString('#04101c'), outlineWidth: 2, disableDepthTestDistance: Number.POSITIVE_INFINITY },
       label: {
-        text: e.name,
-        font: '600 14px -apple-system, sans-serif',
-        fillColor: Cesium.Color.WHITE,
-        outlineColor: Cesium.Color.BLACK,
-        outlineWidth: 3,
+        text: e.name.toUpperCase(),
+        font: '600 12px "SF Mono", Menlo, monospace',
+        fillColor: Cesium.Color.fromCssColorString('#cfefff'),
+        outlineColor: Cesium.Color.fromCssColorString('#04101c'),
+        outlineWidth: 4,
         style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-        pixelOffset: new Cesium.Cartesian2(0, -22),
+        pixelOffset: new Cesium.Cartesian2(0, -20),
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
     }),
   );
   if (fly) {
-    viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(center, r), {
+    flying = true;
+    camera.flyToBoundingSphere(new Cesium.BoundingSphere(center, r), {
       offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-62), Math.max(r * 3.4, 2500)),
       duration: 2.2,
+      complete: () => (flying = false),
+      cancel: () => (flying = false),
     });
   }
   renderDetail(e);
 }
 
 const wikiCache = new Map();
-async function wikiSummary(title) {
-  if (wikiCache.has(title)) return wikiCache.get(title);
-  const p = fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}?redirect=true`)
-    .then((r) => (r.ok ? r.json() : null))
-    .catch(() => null);
-  wikiCache.set(title, p);
-  return p;
+function wikiSummary(title) {
+  if (!wikiCache.has(title))
+    wikiCache.set(
+      title,
+      fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}?redirect=true`)
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+    );
+  return wikiCache.get(title);
 }
 
 function factRows(e) {
   const rows = [
-    ['Category', CATS[e.category]?.one || e.category],
+    ['Category', CATS[e.category]?.one],
     ['Type', e.type],
-    ['Myth or confirmed', VERACITY[e.veracity]?.label],
+    ['Myth / confirmed', VERACITY[e.veracity]?.label],
     ['Status', STATUS[e.status]?.label],
-    ['Treasure / valuables', e.treasure ? 'Yes' : 'No'],
+    ['Treasure', e.treasure ? 'Yes' : 'No'],
     ['Built / made', fmtYear(e.built)],
-    ['Sank / crashed / lost', fmtDate(e.lost)],
+    ['Lost', fmtDate(e.lost)],
     ['Discovered', fmtYear(e.discovered)],
-    ['Discovered by', e.discoveredBy],
-    ['Deaths', e.deaths?.toLocaleString()],
-    ['Depth', e.depthM ? `${e.depthM.toLocaleString()} m` : ''],
+    ['Found by', e.discoveredBy],
+    ['Deaths', e.deaths !== undefined ? num(e.deaths) : ''],
+    ['Depth', e.depthM ? `${num(e.depthM)} m` : ''],
     ['Length', e.lengthM ? `${e.lengthM} m` : ''],
-    ['Tonnage', e.tonnage ? `${e.tonnage.toLocaleString()} t` : ''],
+    ['Tonnage', e.tonnage ? `${num(e.tonnage)} t` : ''],
     ['Flag / country', e.country],
     ['Operator', e.operator],
     ['Vehicle', e.aircraft],
-    ['Estimated position', `${e.lat.toFixed(4)}, ${e.lon.toFixed(4)}`],
+    ['Position', `${e.lat.toFixed(4)}, ${e.lon.toFixed(4)}`],
     ['Search radius', `${e.radiusKm >= 10 ? Math.round(e.radiusKm) : e.radiusKm} km`],
-    ['Data source', e.source === 'curated' ? 'KJX curated' : 'Wikidata'],
-    ['Wikidata ID', e.wikidata],
+    ['Wikidata', e.wikidata],
+    ['Data source', SOURCES[e.source]?.label],
   ];
   return rows.filter(([, v]) => v !== undefined && v !== null && v !== '');
 }
@@ -439,10 +617,11 @@ function factRows(e) {
 async function renderDetail(e) {
   const panel = $('#detail');
   panel.hidden = false;
-  panel.scrollTop = 0;
+  $('.scroll', panel).scrollTop = 0;
+  $('#dsrc').textContent = ({ curated: 'CURATED', wikidata: 'WIKIDATA', noaa: 'NOAA CHART', osm: 'OPENSTREETMAP' }[e.source] || 'DATA') + ` · #${String(e._i).padStart(6, '0')}`;
   const cat = CATS[e.category] || CATS.ship;
   const ver = VERACITY[e.veracity];
-  const badge = (txt, color) => `<span class="badge" style="color:${color};background:${color}22">${esc(txt)}</span>`;
+  const badge = (txt, color) => `<span class="badge" style="color:${color};border-color:${color}88;background:${color}14">${esc(txt)}</span>`;
   const body = $('.detail-body', panel);
   body.innerHTML = `
     <div class="img-slot">${e.image ? `<img class="detail-img" src="${esc(e.image)}" alt="" onerror="this.remove()">` : ''}</div>
@@ -453,18 +632,19 @@ async function renderDetail(e) {
         ${badge(cat.one, cat.color)}
         ${badge(ver?.label || e.veracity, ver?.color || '#ccc')}
         ${badge(STATUS[e.status]?.label || e.status, areaColor(e))}
-        ${e.treasure ? badge('★ Treasure', '#f5c542') : ''}
-        ${e.lostYear !== undefined ? badge(fmtYear(e.lostYear), '#9fb4c8') : ''}
+        ${e.treasure ? badge('★ Treasure', '#ffd84f') : ''}
+        ${e.lostYear !== undefined ? badge(fmtYear(e.lostYear), '#5d7a99') : ''}
       </div>
-      ${e.value ? `<div class="value">💰 ${esc(e.value)}</div>` : ''}
+      ${e.value ? `<div class="value">$ ${esc(e.value)}</div>` : ''}
       <div class="desc"><p>${esc(e.summary || '')}</p><div class="wiki-extract"></div></div>
-      ${e.locNote ? `<div class="locnote">📍 ${esc(e.locNote)}</div>` : ''}
+      ${e.locNote ? `<div class="locnote">› ${esc(e.locNote)}</div>` : ''}
+      ${e.note ? `<div class="value" style="color:var(--dim);border-color:rgba(93,122,153,.5);background:rgba(93,122,153,.08)">⚠ DATA NOTE — ${esc(e.note)}</div>` : ''}
       <table class="facts">${factRows(e).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</table>
       <div class="links">
-        ${e.wiki ? `<a href="https://en.wikipedia.org/wiki/${encodeURIComponent(e.wiki)}" target="_blank">Wikipedia ↗</a>` : ''}
-        ${e.wikidata ? `<a href="https://www.wikidata.org/wiki/${e.wikidata}" target="_blank">Wikidata ↗</a>` : ''}
-        <a href="https://www.google.com/maps/@${e.lat},${e.lon},12z/data=!3m1!1e3" target="_blank">Google Maps ↗</a>
-        <a href="#" data-copy="${e.lat}, ${e.lon}">Copy coordinates</a>
+        ${e.wiki ? `<a href="https://en.wikipedia.org/wiki/${encodeURIComponent(e.wiki)}" target="_blank">WIKIPEDIA ↗</a>` : ''}
+        ${e.wikidata ? `<a href="https://www.wikidata.org/wiki/${e.wikidata}" target="_blank">WIKIDATA ↗</a>` : ''}
+        <a href="https://www.google.com/maps/@${e.lat},${e.lon},12z/data=!3m1!1e3" target="_blank">GOOGLE MAPS ↗</a>
+        <a href="#" data-copy="${e.lat}, ${e.lon}">COPY COORDS</a>
       </div>
     </div>`;
   if (!e.wiki) return;
@@ -473,87 +653,123 @@ async function renderDetail(e) {
   const img = s.originalimage?.source || s.thumbnail?.source;
   if (img && !e.image) $('.img-slot', body).innerHTML = `<img class="detail-img" src="${esc(img)}" alt="" onerror="this.remove()">`;
   if (s.extract && s.extract.length > (e.summary || '').length * 0.8) {
-    $('.wiki-extract', body).innerHTML = `<p style="color:#b8c6d6">${esc(s.extract)}</p><p style="color:#6f859b;font-size:11px">— Wikipedia</p>`;
+    $('.wiki-extract', body).innerHTML = `<p style="color:#8fa9c0">${esc(s.extract)}</p><p class="dim" style="font-size:9px;letter-spacing:1.5px">— SOURCE: WIKIPEDIA</p>`;
   }
+}
+
+// ───────────────────────── UI helpers ─────────────────────────
+const pad2 = (n) => String(n).padStart(2, '0');
+function section(id, n, title, body, meta = '', metaOn = false) {
+  const open = state.open.has(id);
+  return `<div class="sec ${open ? 'open' : ''}" data-sec="${id}">
+    <div class="sh" data-toggle="${id}"><span class="ar">${open ? '▾' : '▸'}</span><span class="n">${n}//</span>${esc(title.toUpperCase())}<span class="meta ${metaOn ? 'on' : ''}">${meta}</span></div>
+    <div class="sb">${body}</div></div>`;
+}
+function optRow({ group, value, label, color, on, count, radio }) {
+  return `<label class="opt ${on ? 'on' : ''} ${radio ? 'radio' : ''}" style="color:${color || 'var(--c)'}">
+    <input type="checkbox" data-set="${group}" value="${value}" ${on ? 'checked' : ''}><span class="box"></span>
+    <span class="lbl">${esc(label.toUpperCase())}</span><span class="lead"></span>${count !== undefined ? `<span class="cnt" data-cnt="${group}:${value}">${num(count)}</span>` : ''}</label>`;
 }
 
 // ───────────────────────── panel: globes ─────────────────────────
 function renderGlobes() {
   const pane = $('[data-pane="globes"]');
-  const openState = [...pane.querySelectorAll('details')].map((d) => d.open);
-  const item = (g) => `<button class="globe-item ${state.globe === g.id ? 'active' : ''}" data-globe="${g.id}">${esc(g.name)}</button>`;
-  pane.innerHTML =
-    GLOBE_GROUPS.map((grp, gi) => {
-      const isHistory = grp.items[0].kind === 'history';
-      const isPaleo = grp.items[0].kind === 'paleo';
-      const hasActive = grp.items.some((g) => g.id === state.globe);
-      const open = openState.length ? openState[gi] || hasActive : gi === 0 || hasActive;
-      let extra = '';
-      if (grp.items.some((g) => g.dated))
-        extra = `<div class="row"><label>MODIS day</label><input type="date" id="modis-date" min="2000-03-01" max="${isoDaysAgo(1)}" value="${state.modisDate}"></div>`;
-      if (isPaleo)
-        extra = `<div class="row"><label>Plate model</label><select id="paleo-model">${grp.models.map((m) => `<option value="${m.id}" ${m.id === state.paleoModel ? 'selected' : ''}>${esc(m.name)}</option>`).join('')}</select></div>`;
-      return `<details class="group" ${open ? 'open' : ''}><summary>${esc(grp.title)}</summary>
-        ${grp.note ? `<p class="note">${esc(grp.note)}</p>` : ''}${extra}
-        <div class="${isHistory ? 'history-grid' : 'globe-list'}">${grp.items.map(item).join('')}</div></details>`;
-    }).join('') +
-    `<h3>Overlays</h3>
-    <label class="toggle"><input type="checkbox" data-overlay="labels" ${state.overlays.labels ? 'checked' : ''}> Place names</label>
-    <label class="toggle"><input type="checkbox" data-overlay="oceanRef" ${state.overlays.oceanRef ? 'checked' : ''}> Ocean names & depths (Esri)</label>
-    <label class="toggle"><input type="checkbox" data-overlay="grid" ${state.overlays.grid ? 'checked' : ''}> Lat / lon grid</label>
-    <label class="toggle"><input type="checkbox" data-overlay="routes" ${state.overlays.routes ? 'checked' : ''}> Historic treasure-fleet routes</label>
-    <h3>Estimated-area colours</h3>
-    ${AREA_LEGEND.map(([c, t]) => `<div class="legend-row"><span class="sw" style="border-color:${c};background:${c}33"></span>${t}</div>`).join('')}
-    <h3>Markers</h3>
-    ${Object.values(CATS).map((c) => `<div class="legend-row"><span class="sw" style="border-radius:50%;width:12px;border-color:${c.color};background:${c.color}"></span>${c.label}</div>`).join('')}
-    <div class="legend-row"><span class="sw" style="border-radius:50%;width:12px;border-color:#f5c542;background:transparent"></span>Gold ring = treasure / valuables</div>
-    <p class="note" style="margin-top:8px">Big dots are KJX-curated entries with full details; small dots come from Wikidata.</p>`;
+  const item = (g) => `<button class="gitem ${state.globe === g.id ? 'active' : ''}" data-globe="${g.id}">${esc(g.name)}</button>`;
+  let html = GLOBE_GROUPS.map((grp, gi) => {
+    const id = 'g' + gi;
+    const isHistory = grp.items[0].kind === 'history';
+    const active = grp.items.find((g) => g.id === state.globe);
+    let extra = '';
+    if (grp.items.some((g) => g.dated)) extra = `<div class="row"><label>MODIS DAY</label><input type="date" id="modis-date" min="2000-03-01" max="${isoDaysAgo(1)}" value="${state.modisDate}"></div>`;
+    if (grp.models) extra = `<div class="row"><label>PLATE MODEL</label><select id="paleo-model">${grp.models.map((m) => `<option value="${m.id}" ${m.id === state.paleoModel ? 'selected' : ''}>${esc(m.name)}</option>`).join('')}</select></div>`;
+    const body = `${grp.note ? `<p class="note">${esc(grp.note)}</p>` : ''}${extra}<div class="${isHistory ? 'hgrid' : ''}">${grp.items.map(item).join('')}</div>`;
+    return section(id, pad2(gi + 1), grp.title, body, active ? '● ACTIVE' : `${grp.items.length}`, !!active);
+  }).join('');
+  const tog = (k, t) => optRow({ group: 'overlay', value: k, label: t, on: state.overlays[k] });
+  html += section('overlays', pad2(GLOBE_GROUPS.length + 1), 'Overlays', [tog('labels', 'Place names'), tog('oceanRef', 'Ocean names & depths'), tog('grid', 'Lat / lon grid'), tog('routes', 'Treasure-fleet routes')].join(''), Object.values(state.overlays).filter(Boolean).length + ' ON');
+  html += section(
+    'key',
+    pad2(GLOBE_GROUPS.length + 2),
+    'Map key',
+    `<p class="note">Estimated area when you select something:</p>${AREA_LEGEND.map(([c, t]) => `<div class="legend-row"><span class="sw" style="border-color:${c};background:${c}22"></span>${esc(t.toUpperCase())}</div>`).join('')}
+     <p class="note" style="margin-top:12px">Markers:</p>${Object.values(CATS).map((c) => `<div class="legend-row"><span class="dt" style="background:${c.color};box-shadow:0 0 6px ${c.color}"></span>${esc(c.label.toUpperCase())}</div>`).join('')}
+     <div class="legend-row"><span class="dt" style="border:1.5px solid #ffd84f"></span>GOLD RING = TREASURE ON BOARD</div>
+     <p class="note" style="margin-top:8px">Big dots are curated files with full detail. Small dots come from Wikidata, NOAA charts and OpenStreetMap; the smallest are unnamed charted wrecks.</p>`,
+  );
+  pane.innerHTML = html;
 }
 
 // ───────────────────────── panel: filters ─────────────────────────
-function chipGroup(key, defs) {
-  return `<div class="chips">${Object.entries(defs)
-    .map(([k, d]) => `<label class="chip ${state.filters[key].has(k) ? 'on' : ''}" style="color:${d.color || '#cfe0f0'}"><input type="checkbox" data-set="${key}" value="${k}" ${state.filters[key].has(k) ? 'checked' : ''}>${d.color ? `<span class="dot" style="background:${d.color}"></span>` : ''}<span style="color:var(--text)">${d.label}</span></label>`)
-    .join('')}</div>`;
-}
-function seg(key, opts) {
-  return `<div class="seg">${opts.map(([v, t]) => `<button data-seg="${key}" data-v="${v}" class="${state.filters[key] === v ? 'on' : ''}">${t}</button>`).join('')}</div>`;
+function activeFilterCount() {
+  const f = state.filters, d = DEFAULT_FILTERS();
+  let n = 0;
+  for (const k of ['cats', 'veracity', 'status', 'sources']) if (f[k].size !== d[k].size) n++;
+  for (const k of ['treasure', 'undated', 'text', 'syncHistory', 'hasImage', 'namedOnly']) if (f[k] !== d[k]) n++;
+  if (f.yearMin !== d.yearMin || f.yearMax !== d.yearMax) n++;
+  return n;
 }
 function renderFilters() {
   const f = state.filters;
+  const groupBody = (group, defs) =>
+    `<div class="allnone"><button data-all="${group}">ALL</button><button data-none="${group}">NONE</button></div>` +
+    Object.entries(defs).map(([k, d]) => optRow({ group, value: k, label: d.label, color: d.color, on: f[group].has(k), count: facetCounts[group]?.[k] || 0 })).join('');
+  const sel = (group, defs) => (f[group].size === Object.keys(defs).length ? 'ALL' : `${f[group].size}/${Object.keys(defs).length}`);
+  const segBtns = (key, opts) => `<div class="seg">${opts.map(([v, t]) => `<button data-seg="${key}" data-v="${v}" class="${f[key] === v ? 'on' : ''}">${t}</button>`).join('')}</div>`;
+  const era = ERAS.find(([, a, b]) => a === f.yearMin && b === f.yearMax);
+  const n = activeFilterCount();
+
   $('[data-pane="filters"]').innerHTML = `
-    <h3>Search</h3>
-    <input type="search" id="search" placeholder="Name, type, country…" value="${esc(f.text)}">
-    <h3>What</h3>${chipGroup('cats', CATS)}
-    <h3>Myth or confirmed</h3>${chipGroup('veracity', VERACITY)}
-    <h3>Lost or found</h3>${chipGroup('status', STATUS)}
-    <h3>Treasure / valuables</h3>${seg('treasure', [['all', 'All'], ['yes', '★ Treasure only'], ['no', 'No treasure']])}
-    <h3>When was it lost</h3>
-    <div class="row"><label>From year</label><input type="number" data-num="yearMin" value="${f.yearMin}" step="50"></div>
-    <div class="row"><label>To year</label><input type="number" data-num="yearMax" value="${f.yearMax}" step="10"></div>
-    <div class="chips" style="margin:6px 0">
-      ${[[-15000, 2026, 'All time'], [-15000, 499, 'Ancient'], [500, 1491, 'Medieval'], [1492, 1800, 'Age of Sail'], [1801, 1913, '1800s'], [1914, 1918, 'WWI'], [1939, 1945, 'WWII'], [1946, 2026, 'Modern']].map(([a, b, t]) => `<button class="chip on" style="color:#cfe0f0" data-range="${a},${b}">${t}</button>`).join('')}
-    </div>
-    <label class="toggle"><input type="checkbox" data-bool="undated" ${f.undated ? 'checked' : ''}> Include entries with unknown date</label>
-    <label class="toggle"><input type="checkbox" data-bool="syncHistory" ${f.syncHistory ? 'checked' : ''}> On history globes, only show what was lost by then</label>
-    <h3>Data</h3>${seg('source', [['all', 'Everything'], ['curated', 'Curated only']])}
-    <label class="toggle"><input type="checkbox" data-bool="hasImage" ${f.hasImage ? 'checked' : ''}> Only entries with a picture / article</label>
-    <div class="row" style="margin-top:16px"><button class="btn" id="reset-filters">Reset all filters</button></div>`;
+    <div class="field"><span>›</span><input type="search" id="search" placeholder="SEARCH NAME, TYPE, COUNTRY…" value="${esc(f.text)}" spellcheck="false" autocomplete="off"></div>
+    <div class="statusline"><span>${n ? `<span class="act">${n} FILTER${n > 1 ? 'S' : ''} ACTIVE</span>` : 'NO FILTERS · SHOWING ALL'}</span><button id="reset-filters" ${n ? '' : 'disabled'}>RESET</button></div>
+    ${section('presets', '01', 'Quick views', `<div class="chips">${PRESETS.map((p) => `<button class="chip preset ${state.preset === p.id ? 'on' : ''}" data-preset="${p.id}">${esc(p.name.toUpperCase())}<small>${esc(p.hint)}</small></button>`).join('')}</div>`, state.preset !== 'all' ? '● ' + PRESETS.find((p) => p.id === state.preset)?.name.toUpperCase() : '', state.preset !== 'all')}
+    ${section('type', '02', 'What', groupBody('cats', CATS), sel('cats', CATS), f.cats.size !== Object.keys(CATS).length)}
+    ${section('truth', '03', 'Myth or confirmed', groupBody('veracity', VERACITY), sel('veracity', VERACITY), f.veracity.size !== 4)}
+    ${section('status', '04', 'Lost or found', groupBody('status', STATUS), sel('status', STATUS), f.status.size !== 4)}
+    ${section('treasure', '05', 'Treasure', `<p class="note">Valuables on board: gold, silver, coins, jewels, cargo.</p>${segBtns('treasure', [['all', 'ALL'], ['yes', '★ ONLY'], ['no', 'NONE']])}`, f.treasure === 'all' ? 'ALL' : f.treasure === 'yes' ? '★ ONLY' : 'NO ★', f.treasure !== 'all')}
+    ${section(
+      'time',
+      '06',
+      'When lost',
+      `<div class="chips">${ERAS.map(([t, a, b]) => `<button class="chip ${era && era[0] === t ? 'on' : ''}" data-range="${a},${b}">${esc(t.toUpperCase())}</button>`).join('')}</div>
+       <div class="row"><label>FROM YEAR</label><input type="number" data-num="yearMin" value="${f.yearMin}" step="50"></div>
+       <div class="row"><label>TO YEAR</label><input type="number" data-num="yearMax" value="${f.yearMax}" step="10"></div>
+       <p class="note">Negative years are BC.</p>
+       ${optRow({ group: 'bool', value: 'undated', label: 'Include unknown dates', on: f.undated })}
+       ${optRow({ group: 'bool', value: 'syncHistory', label: 'Match history globe year', on: f.syncHistory })}`,
+      era ? era[0].toUpperCase() : `${fmtYear(f.yearMin)}–${fmtYear(f.yearMax)}`,
+      !(era && era[0] === 'All time'),
+    )}
+    ${section('data', '07', 'Data source', `${groupBody('sources', SOURCES)}<div style="height:6px"></div>${optRow({ group: 'bool', value: 'namedOnly', label: 'Hide unnamed charted wrecks', on: f.namedOnly })}${optRow({ group: 'bool', value: 'hasImage', label: 'Has picture / article', on: f.hasImage })}`, sel('sources', SOURCES), f.sources.size !== 4 || f.hasImage || f.namedOnly)}`;
+}
+function updateFilterCounts() {
+  document.querySelectorAll('[data-cnt]').forEach((el) => {
+    const [g, v] = el.dataset.cnt.split(':');
+    el.textContent = num(facetCounts[g]?.[v] || 0);
+  });
+}
+function filtersChanged(rerender = true) {
+  applyFilters();
+  if (rerender) {
+    const pane = $('[data-pane="filters"]');
+    const top = pane.scrollTop;
+    renderFilters();
+    pane.scrollTop = top;
+  }
 }
 
-// ───────────────────────── panel: list & myths ─────────────────────────
-const dot = (e) => `<span class="dot" style="background:${(CATS[e.category] || CATS.ship).color};${e.treasure ? 'box-shadow:0 0 0 2px #f5c542' : ''}"></span>`;
+// ───────────────────────── panel: index & myths ─────────────────────────
+const dot = (e) => `<span class="dt" style="background:${(CATS[e.category] || CATS.ship).color};${e.treasure ? 'box-shadow:0 0 0 1.5px #ffd84f' : ''}"></span>`;
 function renderList() {
   const pane = $('[data-pane="list"]');
   if (!pane.classList.contains('active')) return;
   const q = $('#list-search')?.value?.toLowerCase().trim() ?? '';
-  const matches = entries.filter((e) => e._point.show && (!q || e._search.includes(q)));
+  const matches = entries.filter((e) => failMask(e, state.filters) === 0 && (!q || e._search.includes(q)));
   matches.sort((a, b) => (b.source === 'curated') - (a.source === 'curated') || (b.treasure === true) - (a.treasure === true) || a.name.localeCompare(b.name));
-  const shown = matches.slice(0, 400);
   const keepFocus = document.activeElement?.id === 'list-search';
-  pane.innerHTML = `<input type="search" id="list-search" placeholder="Search the visible entries…" value="${esc(q)}">
-    <p class="note" style="margin:8px 0">${matches.length.toLocaleString()} match the current filters${matches.length > 400 ? ' — showing the first 400' : ''}. Curated and treasure first.</p>
-    <div class="list">${shown
+  pane.innerHTML = `<div class="field"><span>›</span><input type="search" id="list-search" placeholder="SEARCH VISIBLE ENTRIES…" value="${esc(q)}" spellcheck="false"></div>
+    <div class="statusline"><span>${num(matches.length)} RESULTS${matches.length > 400 ? ' · FIRST 400' : ''}</span><span>CURATED + ★ FIRST</span></div>
+    <div>${matches
+      .slice(0, 400)
       .map((e) => `<div class="list-item" data-pick="${e._i}">${dot(e)}<div class="t"><b>${e.treasure ? '<span class="gold">★</span> ' : ''}${esc(e.name)}</b><small>${esc([e.type, e.country].filter(Boolean).join(' · ') || e.summary || '')}</small></div><span class="yr">${esc(fmtYear(e.lostYear))}</span></div>`)
       .join('')}</div>`;
   if (keepFocus) {
@@ -564,19 +780,19 @@ function renderList() {
 }
 
 function renderMyths() {
-  const pane = $('[data-pane="myths"]');
   const groups = [
-    ['myth', 'Myths', 'Stories with no historical evidence — sunken continents, ghost ships, phantom islands.'],
-    ['legend', 'Legends', 'Rooted in real history, but the treasure or place has never been proven.'],
-    ['disputed', 'Disputed & rumoured', 'Real events with contested claims — rumoured cargo, contested identifications.'],
+    ['myth', 'Myths', 'No historical evidence: sunken continents, ghost ships, phantom islands.'],
+    ['legend', 'Legends', 'Rooted in real history, but the treasure or place is unproven.'],
+    ['disputed', 'Disputed & rumoured', 'Real events with contested claims about cargo or identity.'],
   ];
-  pane.innerHTML =
-    `<p class="note">Everything that is a myth, legend or rumour lives here. Click one to fly to its supposed location.</p>` +
+  $('[data-pane="myths"]').innerHTML =
+    `<p class="note">Every myth, legend and rumour in the index. Select one to fly to its supposed location.</p>` +
     groups
       .map(([k, title, note]) => {
         const items = entries.filter((e) => e.veracity === k).sort((a, b) => (b.treasure === true) - (a.treasure === true) || a.name.localeCompare(b.name));
-        return `<h3 style="color:${VERACITY[k].color}">${title} · ${items.length}</h3><p class="note">${note}</p>
-          ${items.map((e) => `<div class="myth-card" data-pick="${e._i}"><b>${e.treasure ? '<span class="gold">★</span> ' : ''}${esc(e.name)}</b><small style="color:var(--muted)">${esc([CATS[e.category]?.one, STATUS[e.status]?.label, e.value].filter(Boolean).join(' · '))}</small><p>${esc(e.summary || '')}</p></div>`).join('')}`;
+        const c = VERACITY[k].color;
+        return `<div class="mhead" style="color:${c};text-shadow:0 0 6px ${c}">${title.toUpperCase()} · ${items.length}</div><p class="note">${note}</p>
+          ${items.map((e) => `<div class="myth-card" style="border-left-color:${c}" data-pick="${e._i}"><b>${e.treasure ? '<span class="gold">★</span> ' : ''}${esc(e.name)}</b><small>${esc([CATS[e.category]?.one, STATUS[e.status]?.label, e.value].filter(Boolean).join(' · '))}</small><p>${esc(e.summary || '')}</p></div>`).join('')}`;
       })
       .join('');
 }
@@ -587,62 +803,77 @@ function setBusy(msg) {
   if (msg) {
     l.textContent = msg;
     l.classList.remove('done');
-    l.style.background = 'rgba(10,20,32,0.6)';
+    l.style.background = 'rgba(2,6,13,0.7)';
   } else l.classList.add('done');
 }
 
 document.addEventListener('click', (ev) => {
-  const t = ev.target.closest('[data-tab],[data-globe],[data-pick],[data-seg],[data-range],[data-zoom],[data-copy],#reset-filters,#detail .close');
+  const t = ev.target.closest('[data-tab],[data-globe],[data-pick],[data-seg],[data-range],[data-zoom],[data-copy],[data-toggle],[data-preset],[data-all],[data-none],#reset-filters,#detail .close');
   if (!t) return;
+  const f = state.filters;
   if (t.dataset.tab) {
     document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('active', b === t));
     document.querySelectorAll('.pane').forEach((p) => p.classList.toggle('active', p.dataset.pane === t.dataset.tab));
     if (t.dataset.tab === 'list') renderList();
+  } else if (t.dataset.toggle) {
+    const id = t.dataset.toggle;
+    state.open.has(id) ? state.open.delete(id) : state.open.add(id);
+    const sec = t.closest('.sec');
+    sec.classList.toggle('open');
+    $('.ar', sec).textContent = sec.classList.contains('open') ? '▾' : '▸';
   } else if (t.dataset.globe) setGlobe(t.dataset.globe);
-  else if (t.dataset.pick) {
-    const e = entries[+t.dataset.pick];
-    if (!e._point.show && !deepTime) {
-      // Make sure the selected entry is visible even if filtered out.
-      e._point.show = true;
-    }
-    select(e);
+  else if (t.dataset.pick) select(entries[+t.dataset.pick]);
+  else if (t.dataset.preset) {
+    const p = PRESETS.find((x) => x.id === t.dataset.preset);
+    state.filters = { ...DEFAULT_FILTERS(), ...p.apply() };
+    state.preset = p.id;
+    filtersChanged();
+  } else if (t.dataset.all || t.dataset.none) {
+    const g = t.dataset.all || t.dataset.none;
+    const defs = { cats: CATS, veracity: VERACITY, status: STATUS, sources: SOURCES }[g];
+    f[g] = new Set(t.dataset.all ? Object.keys(defs) : []);
+    state.preset = '';
+    filtersChanged();
   } else if (t.dataset.seg) {
-    state.filters[t.dataset.seg] = t.dataset.v;
-    renderFilters();
-    applyFilters();
+    f[t.dataset.seg] = t.dataset.v;
+    state.preset = '';
+    filtersChanged();
   } else if (t.dataset.range) {
     const [a, b] = t.dataset.range.split(',').map(Number);
-    Object.assign(state.filters, { yearMin: a, yearMax: b });
-    renderFilters();
-    applyFilters();
+    Object.assign(f, { yearMin: a, yearMax: b });
+    state.preset = '';
+    filtersChanged();
   } else if (t.dataset.zoom) zoom(t.dataset.zoom);
   else if (t.dataset.copy) {
     ev.preventDefault();
     navigator.clipboard?.writeText(t.dataset.copy);
-    t.textContent = 'Copied ✓';
+    t.textContent = 'COPIED ✓';
   } else if (t.id === 'reset-filters') {
-    Object.assign(state.filters, { cats: new Set(Object.keys(CATS)), veracity: new Set(Object.keys(VERACITY)), status: new Set(Object.keys(STATUS)), treasure: 'all', source: 'all', yearMin: -15000, yearMax: 2026, undated: true, text: '', syncHistory: false, hasImage: false });
-    renderFilters();
-    applyFilters();
+    state.filters = DEFAULT_FILTERS();
+    state.preset = 'all';
+    filtersChanged();
   } else if (t.classList.contains('close')) select(null);
 });
 
 document.addEventListener('change', (ev) => {
   const t = ev.target;
-  if (t.dataset.set) {
-    const s = state.filters[t.dataset.set];
-    t.checked ? s.add(t.value) : s.delete(t.value);
-    t.closest('.chip').classList.toggle('on', t.checked);
-    applyFilters();
-  } else if (t.dataset.bool) {
-    state.filters[t.dataset.bool] = t.checked;
-    applyFilters();
-  } else if (t.dataset.num) {
-    state.filters[t.dataset.num] = Number(t.value);
-    applyFilters();
-  } else if (t.dataset.overlay) {
-    setOverlay(t.dataset.overlay, t.checked);
+  const f = state.filters;
+  if (t.dataset.set === 'overlay') {
+    setOverlay(t.value, t.checked);
     orderOverlays();
+    renderGlobes();
+  } else if (t.dataset.set === 'bool') {
+    f[t.value] = t.checked;
+    state.preset = '';
+    filtersChanged();
+  } else if (t.dataset.set) {
+    t.checked ? f[t.dataset.set].add(t.value) : f[t.dataset.set].delete(t.value);
+    state.preset = '';
+    filtersChanged();
+  } else if (t.dataset.num) {
+    f[t.dataset.num] = Number(t.value);
+    state.preset = '';
+    filtersChanged();
   } else if (t.id === 'modis-date') {
     state.modisDate = t.value;
     setGlobe('modis');
@@ -658,7 +889,12 @@ document.addEventListener('input', (ev) => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
       state.filters.text = ev.target.value.toLowerCase().trim();
+      state.preset = '';
       applyFilters();
+      const sl = $('.statusline span');
+      const n = activeFilterCount();
+      if (sl) sl.innerHTML = n ? `<span class="act">${n} FILTER${n > 1 ? 'S' : ''} ACTIVE</span>` : 'NO FILTERS · SHOWING ALL';
+      $('#reset-filters').disabled = !n;
     }, 200);
   } else if (ev.target.id === 'list-search') {
     clearTimeout(searchTimer);
@@ -667,12 +903,14 @@ document.addEventListener('input', (ev) => {
 });
 
 function zoom(kind) {
-  const cam = viewer.camera;
-  const h = cam.positionCartographic.height;
-  if (kind === 'in') cam.zoomIn(h * 0.5);
-  if (kind === 'out') cam.zoomOut(h * 1.0);
-  if (kind === 'home') cam.flyTo({ destination: Cesium.Cartesian3.fromDegrees(-30, 25, 2.2e7), duration: 1.5 });
-  if (kind === 'north') cam.flyTo({ destination: cam.position.clone(), orientation: { heading: 0, pitch: cam.pitch, roll: 0 }, duration: 0.8 });
+  const h = camera.positionCartographic.height;
+  if (kind === 'in') camera.zoomIn(h * 0.5);
+  if (kind === 'out') camera.zoomOut(h * 1.0);
+  if (kind === 'home') {
+    flying = true;
+    camera.flyTo({ destination: HOME, duration: 1.5, complete: () => (flying = false), cancel: () => (flying = false) });
+  }
+  if (kind === 'north') camera.flyTo({ destination: camera.position.clone(), orientation: { heading: 0, pitch: camera.pitch, roll: 0 }, duration: 0.8 });
 }
 document.addEventListener('keydown', (ev) => {
   if (ev.target.matches('input,select,textarea')) return;
@@ -684,6 +922,7 @@ document.addEventListener('keydown', (ev) => {
 });
 
 const handler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
+scene.canvas.addEventListener('mouseleave', () => ($('#tooltip').hidden = true));
 const pickEntry = (pos) => {
   const picked = scene.pick(pos);
   return picked && picked.id && picked.id.kjx !== undefined ? entries[picked.id.kjx] : null;
@@ -707,7 +946,7 @@ handler.setInputAction((ev) => {
     }
     scene.canvas.style.cursor = 'pointer';
     tip.hidden = false;
-    tip.innerHTML = `<b>${e.treasure ? '<span class="gold">★</span> ' : ''}${esc(e.name)}</b><small>${esc([e.type, fmtYear(e.lostYear), VERACITY[e.veracity]?.label].filter(Boolean).join(' · '))}</small>`;
+    tip.innerHTML = `${BRACKETS}<b>${e.treasure ? '<span class="gold">★</span> ' : ''}${esc(e.name)}</b><small>${esc([e.type, fmtYear(e.lostYear), VERACITY[e.veracity]?.label].filter(Boolean).join(' · ').toUpperCase())}</small>`;
     tip.style.left = ev.endPosition.x + 14 + 'px';
     tip.style.top = ev.endPosition.y + 14 + 'px';
   });
@@ -715,11 +954,11 @@ handler.setInputAction((ev) => {
 
 // ───────────────────────── boot ─────────────────────────
 renderGlobes();
-renderFilters();
 await setGlobe(state.globe);
-setOverlay('labels', true);
 await loadData();
 applyFilters();
+renderFilters();
 renderMyths();
+$('#online').innerHTML = `<span class="blink glow">●</span> <span class="dim">${num(entries.length)} RECORDS</span>`;
 setBusy(null);
 window.kjx = { viewer, entries, state, select, setGlobe };

@@ -32,7 +32,17 @@ const GROUPS = [
   { key: 'hoard', where: '{ ?s wdt:P31/wdt:P279* wd:Q164099 } UNION { ?s wdt:P31/wdt:P279* wd:Q4922985 }' },
   { key: 'sunken-city', where: '?s wdt:P31/wdt:P279* wd:Q20616831 .' },
   { key: 'lost-city', where: '?s wdt:P31/wdt:P279* wd:Q2974842 .' },
+  // Extra classes (added later; fetch with --groups=scuttled,disaster,rail,reef,dive):
+  { key: 'scuttled', cat: 'ship', where: 'VALUES ?ev { wd:Q1786766 wd:Q1522772 } ?s wdt:P793 ?ev .' },
+  { key: 'disaster', cat: 'ship', where: '?s wdt:P31/wdt:P279* wd:Q2620513 .' },
+  { key: 'rail', cat: 'vehicle', where: '?s wdt:P31/wdt:P279* wd:Q1078765 .' },
+  { key: 'reef', cat: 'ship', where: '?s wdt:P31/wdt:P279* wd:Q985843 .' },
+  { key: 'phantom', cat: 'city', myth: true, where: '?s wdt:P31/wdt:P279* wd:Q129264 .' },
+  { key: 'mythplace', cat: 'city', myth: true, where: '?s wdt:P31/wdt:P279* wd:Q3238337 .' },
+  { key: 'dive', cat: 'ship', where: '?s wdt:P31/wdt:P279* wd:Q2141554 .', keep: /wreck|ship|plane|aircraft|sunk|scuttl|tank|train|bus|car\b/i },
 ];
+const argGroups = (process.argv.find((a) => a.startsWith('--groups=')) || '').slice(9).split(',').filter(Boolean);
+const OUT = (process.argv.find((a) => a.startsWith('--out=')) || '--out=wikidata.json').slice(6);
 
 const yearOf = (v) => {
   if (!v) return null;
@@ -103,26 +113,27 @@ function toEntry(groupKey, id, pos, r) {
   const name = str(r.name) || id;
   const description = str(r.description) || '';
   const isSub = types.some((t) => /submarine|u-boat/i.test(t)) || /\b(submarine|U-boat)\b/i.test(description);
-  let category = groupKey;
-  if (groupKey === 'ship' && isSub) category = 'submarine';
+  const g = GROUPS.find((x) => x.key === groupKey);
+  let category = g.cat || groupKey;
+  if (category === 'ship' && isSub) category = 'submarine';
   if (groupKey === 'hoard') category = 'treasure';
   if (groupKey === 'sunken-city' || groupKey === 'lost-city') category = 'city';
 
   const lostDate = dateOf(r.lost) || dateOf(r.pit) || (groupKey === 'ship' ? dateOf(r.end) : null);
   const built = yearOf(r.built) ?? yearOf(r.svc);
   const treasure = groupKey === 'hoard' || TREASURE_RE.test(description);
-  const status = groupKey === 'lost-city' ? 'lost' : 'found';
+  const status = groupKey === 'lost-city' || g.myth ? 'lost' : 'found';
 
   const e = {
     id: 'wd-' + id,
     name,
     category,
-    veracity: 'confirmed',
+    veracity: g.myth ? 'myth' : 'confirmed',
     status,
     treasure,
     lat: +pos.lat.toFixed(5),
     lon: +pos.lon.toFixed(5),
-    radiusKm: status === 'found' ? 0.5 : 25,
+    radiusKm: g.myth ? 60 : status === 'found' ? 0.5 : 25,
     type: types.slice(0, 3).join(', ') || null,
     built,
     lost: lostDate,
@@ -147,7 +158,7 @@ function toEntry(groupKey, id, pos, r) {
 
 const all = [];
 const seen = new Set();
-for (const g of GROUPS) {
+for (const g of GROUPS.filter((x) => (argGroups.length ? argGroups.includes(x.key) : !x.cat))) {
   console.log('listing', g.key);
   const ids = await listIds(g);
   const fresh = [...ids.keys()].filter((i) => !seen.has(i));
@@ -160,7 +171,11 @@ for (const g of GROUPS) {
       const id = r.s.value.split('/').pop();
       if (seen.has(id)) continue;
       seen.add(id);
-      all.push(toEntry(g.key, id, ids.get(id), r));
+      const entry = toEntry(g.key, id, ids.get(id), r);
+      if (g.keep && !g.keep.test(`${entry.name} ${entry.summary || ''} ${entry.type || ''}`)) continue;
+      if (g.key === 'rail' && !entry.type) entry.type = 'Railway accident';
+      if (g.key === 'reef' || g.key === 'dive') entry.type = entry.type || 'Wreck dive site';
+      all.push(entry);
     }
     process.stdout.write(`\r  ${Math.min(i + BATCH, fresh.length)}/${fresh.length}`);
     await sleep(400);
@@ -169,5 +184,5 @@ for (const g of GROUPS) {
 }
 
 await mkdir(new URL('../public/data/', import.meta.url), { recursive: true });
-await writeFile(new URL('../public/data/wikidata.json', import.meta.url), JSON.stringify(all));
+await writeFile(new URL('../public/data/' + OUT, import.meta.url), JSON.stringify(all));
 console.log('wrote', all.length, 'entries');

@@ -10,9 +10,11 @@
     <div id="globe"></div>
 
     <header id="brand">
-      <div class="logo">KJX</div>
-      <div class="tag">wrecks · crashes · lost treasure</div>
+      <div class="logo">KJX<span>//</span>GLOBE</div>
+      <div class="tag">WRECK · CRASH · TREASURE INDEX</div>
     </header>
+
+    <div id="hud" class="term"></div>
 
     <div id="zoom">
       <button data-zoom="in" title="Zoom in (+)">+</button>
@@ -21,19 +23,20 @@
       <button data-zoom="north" title="Face north (N)">N</button>
     </div>
 
-    <div id="tooltip" hidden></div>
+    <div id="tooltip" class="term" hidden></div>
 
-    <aside id="detail" hidden>
-      <button class="close" title="Close (Esc)">×</button>
-      <div class="detail-body"></div>
+    <aside id="detail" class="term" hidden>
+      <div class="dhead"><span class="glow">FILE//<span id="dsrc">CURATED</span></span><button class="close" title="Close (Esc)">ESC ✕</button></div>
+      <div class="scroll"><div class="detail-body"></div></div>
     </aside>
 
-    <aside id="panel">
+    <aside id="panel" class="term">
+      <div class="phead"><span class="glow">KJX//NAV</span><span id="online"><span class="blink glow">●</span> <span class="dim">LOADING</span></span></div>
       <nav class="tabs">
-        <button data-tab="globes" class="active">Globes</button>
-        <button data-tab="filters">Filters</button>
-        <button data-tab="list">Wrecks</button>
-        <button data-tab="myths">Myths &amp; Rumours</button>
+        <button data-tab="globes" class="active">GLOBES</button>
+        <button data-tab="filters">FILTER</button>
+        <button data-tab="list">INDEX</button>
+        <button data-tab="myths">MYTHS</button>
       </nav>
       <section data-pane="globes" class="pane active"></section>
       <section data-pane="filters" class="pane"></section>
@@ -42,7 +45,7 @@
       <footer id="stats"></footer>
     </aside>
 
-    <div id="loading">Charting the seven seas…</div>
+    <div id="loading">&gt; CHARTING THE SEVEN SEAS_</div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

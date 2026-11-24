@@ -6,20 +6,19 @@ A treasure-hunting globe for macOS: every mapped shipwreck, plane crash, sunken 
 
 ## What's in it
 
-- **33,000+ entries.** About 300 are hand-curated with full details (treasure value, myth vs. confirmed, search radius, history). Over 33,000 more come from Wikidata: about 30,500 shipwrecks, 1,900 aviation accidents, 110 treasure hoards and 220 sunken or lost cities.
-- **Each entry has:** myth / legend / disputed / confirmed · found / partly found / salvaged / still lost · treasure yes/no and estimated value · build year · date lost · date and finder of the discovery · deaths · depth · length · tonnage · flag · operator · coordinates · search radius · description · picture (pulled live from Wikipedia).
-- **Selecting an entry** flies the camera to it and draws the estimated area as colour-coded rings (green = found, orange = partly found, red = still lost, yellow = disputed, purple = legend, pink = myth).
-- **Right panel**
-  - **Globes**, more than 80 to choose from:
-    - Today: satellite, ocean-floor and bathymetry maps (GEBCO, EMODnet), sonar and night-vision styles.
-    - NASA: Blue Marble, Black Marble (Earth at night), and MODIS true colour for any day since 2000.
-    - Maps: NatGeo, topographic, OpenStreetMap, antique sepia sea chart, ink, dark and light styles.
-    - History: world political borders for 55 eras, from 123,000 BC to 2010.
-    - Deep time: plate-tectonic coastlines from 20 to 750 million years ago, with 4 different research models.
-  - **Filters:** type, myth vs. confirmed, lost vs. found, treasure, year range with era presets, curated only, has a picture, text search. On history globes you can also show only wrecks that had already sunk by that year.
-  - **Wrecks:** a searchable list of everything currently visible.
-  - **Myths & Rumours:** a separate column for every myth, legend and rumour.
-- **Overlays:** place names, ocean names and depths, lat/lon grid, historic treasure-fleet routes (Spanish Flota, Manila galleons, Portuguese Carreira, VOC).
+- **Every wreck I could find, from five sources:**
+  - **KJX curated** (~440 entries): treasure galleons, famous wrecks, crashes, sunken cars and trains, lost hoards, and 245 myths, legends and rumours, all with full detail. Myths with thin evidence carry a ⚠ data note.
+  - **Wikidata** (~34,500): shipwrecks, aviation and railway accidents, maritime disasters, scuttled and capsized ships, wreck dive sites, treasure hoards, sunken and lost cities, phantom islands and mythical places.
+  - **NOAA nautical charts** (~9,300 after removing duplicates): every charted wreck in US waters.
+  - **OpenStreetMap:** mapped wrecks worldwide (`historic=wreck`, `seamark:type=wreck`, `historic=aircraft_wreck`).
+  - Points within ~200 m of a higher-ranked source are treated as duplicates and skipped.
+- **Categories:** ships · submarines · aircraft · spacecraft · treasure and hoards · sunken and lost cities · cars, trains and tanks.
+- **Each entry has:** myth / legend / disputed / confirmed · found / partly found / salvaged / still lost · treasure and its value · build year · date lost · date and finder of the discovery · deaths · depth · size · flag · operator · coordinates · search radius · description · picture (live from Wikipedia).
+- **Selecting an entry** flies the camera to it and draws the estimated area as colour-coded rings.
+- **Globes:** 80+ to choose from. Satellite, ocean floor and bathymetry; NASA (Blue Marble, night lights, daily MODIS since 2000); map styles; world borders for 55 eras; plate-tectonic coastlines from 20 to 750 million years ago.
+- **Filters:** quick-view presets, then collapsible sections (type, myth vs. confirmed, lost vs. found, treasure, time, data source). Every option shows a live count.
+- **Positions:** curated wreck positions are cross-checked against Wikipedia coordinates (`npm run data:verify`). Corrections are saved in `scripts/curated/coord-fixes.json`; entries marked `fixedPos` are never changed.
+- **Look:** the terminal-cyan style from the STUDY//TERM widgets.
 
 ## Run it
 
@@ -33,8 +32,12 @@ npm run package    # builds dist-app/mac-arm64/KJX.app
 ## Update the data
 
 ```bash
-npm run data       # re-pulls everything from Wikidata (~10 min), then merges with the curated set
-npm run data:build # only re-merge (after editing scripts/curated/*.mjs)
+npm run data          # re-pulls every source (Wikidata, NOAA, OSM), verifies positions, merges
+npm run data:wikidata # just Wikidata (~10 min)
+npm run data:noaa     # just NOAA charted wrecks (~1 min)
+npm run data:osm      # just OpenStreetMap (slow; public Overpass servers are often busy, so it retries)
+npm run data:verify   # cross-check curated positions against Wikipedia
+npm run data:build    # only re-merge (after editing scripts/curated/*.mjs)
 ```
 
 Curated entries live in `scripts/curated/`, one file per theme (treasure ships, famous wrecks, aircraft, lost treasure, myths). To add one, copy an existing entry, change the fields, and run `npm run data:build`.
