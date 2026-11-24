@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <radialGradient id="sea" cx="40%" cy="35%" r="75%"><stop offset="0" stop-color="#1f5f8f"/><stop offset="1" stop-color="#06121f"/></radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset="1" stop-color="#c8902a"/></linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="#0a1420"/>
+  <circle cx="512" cy="512" r="360" fill="url(#sea)" stroke="#e8b84a" stroke-width="10" opacity="0.98"/>
+  <g fill="none" stroke="#7fb3d9" stroke-opacity="0.35" stroke-width="6">
+    <ellipse cx="512" cy="512" rx="150" ry="360"/><ellipse cx="512" cy="512" rx="280" ry="360"/>
+    <line x1="152" y1="512" x2="872" y2="512"/><path d="M190 352 Q512 300 834 352"/><path d="M190 672 Q512 724 834 672"/>
+  </g>
+  <text x="512" y="590" text-anchor="middle" font-family="Helvetica Neue, Arial" font-weight="800" font-size="230" letter-spacing="20" fill="url(#gold)">KJX</text>
+  <path d="M512 640 l26 52 57 8 -41 40 10 57 -52 -27 -52 27 10 -57 -41 -40 57 -8z" fill="url(#gold)"/>
+</svg>

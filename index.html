@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KJX</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚓</text></svg>" />
+  </head>
+  <body>
+    <div id="globe"></div>
+
+    <header id="brand">
+      <div class="logo">KJX</div>
+      <div class="tag">wrecks · crashes · lost treasure</div>
+    </header>
+
+    <div id="zoom">
+      <button data-zoom="in" title="Zoom in (+)">+</button>
+      <button data-zoom="out" title="Zoom out (−)">−</button>
+      <button data-zoom="home" title="Whole globe (H)">⌂</button>
+      <button data-zoom="north" title="Face north (N)">N</button>
+    </div>
+
+    <div id="tooltip" hidden></div>
+
+    <aside id="detail" hidden>
+      <button class="close" title="Close (Esc)">×</button>
+      <div class="detail-body"></div>
+    </aside>
+
+    <aside id="panel">
+      <nav class="tabs">
+        <button data-tab="globes" class="active">Globes</button>
+        <button data-tab="filters">Filters</button>
+        <button data-tab="list">Wrecks</button>
+        <button data-tab="myths">Myths &amp; Rumours</button>
+      </nav>
+      <section data-pane="globes" class="pane active"></section>
+      <section data-pane="filters" class="pane"></section>
+      <section data-pane="list" class="pane"></section>
+      <section data-pane="myths" class="pane"></section>
+      <footer id="stats"></footer>
+    </aside>
+
+    <div id="loading">Charting the seven seas…</div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
