@@ -234,7 +234,8 @@ scene.postRender.addEventListener(() => {
   if (now - hudTimer < 150) return;
   hudTimer = now;
   if (!hudSpans.length) {
-    $('#hud').insertAdjacentHTML('beforeend', '<span>LAT <b></b></span><span>LON <b></b></span><span>ALT <b></b></span>');
+    $('#hud').insertAdjacentHTML('beforeend', '<span>LAT <b></b></span><span>LON <b></b></span><span>ALT <b></b></span><button class="credits" title="Map data credits">ⓘ</button>');
+    $('#hud .credits').addEventListener('click', () => document.querySelector('.cesium-credit-expand-link')?.click());
     hudSpans.push(...$('#hud').querySelectorAll('span b'));
   }
   const c = camera.positionCartographic;

@@ -227,3 +227,9 @@ body.nopanel #zoom { right: 18px; }
 #panel-toggle { font-size: 15px; }
 #brand { transition: top 0.18s ease; }
 body.topbar-on #brand { top: 46px; }
+
+/* Cesium ion logo hidden (no ion services are used); data credits live behind the ⓘ in the HUD */
+.cesium-widget-credits { display: none !important; }
+#hud { pointer-events: auto; }
+#hud .credits { background: none; border: 0; color: var(--dim); cursor: pointer; font: inherit; padding: 0 0 0 4px; }
+#hud .credits:hover { color: var(--c); }
