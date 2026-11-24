@@ -107,6 +107,8 @@ function isoDaysAgo(n) {
   return new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
 }
 const $ = (s, el = document) => el.querySelector(s);
+// Case- and accent-insensitive matching: "san jose" finds "San José", "senora" finds "Señora".
+const fold = (s) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ');
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const fmtYear = (y) => (y === undefined || y === null || y === '' ? '' : (y = String(y)).startsWith('-') ? `${y.slice(1).split('-')[0]} BC` : y);
 const num = (n) => (n ?? 0).toLocaleString('en-US');
@@ -455,7 +457,7 @@ async function loadData() {
       distanceDisplayCondition: unnamed ? nearOnly : undefined,
       id: { kjx: i },
     });
-    e._search = [e.name, e.type, e.country, e.summary, e.operator, e.aircraft].filter(Boolean).join(' ').toLowerCase();
+    e._search = fold([e.name, e.type, e.country, e.summary, e.operator, e.aircraft].filter(Boolean).join(' '));
   });
   for (const c of cells.values()) {
     // pad the sphere so markers right at the horizon don't pop
@@ -764,7 +766,7 @@ function renderFilters() {
   const n = activeFilterCount();
 
   $('[data-pane="filters"]').innerHTML = `
-    <div class="field"><span>›</span><input type="search" id="search" placeholder="SEARCH NAME, TYPE, COUNTRY…" value="${esc(f.text)}" spellcheck="false" autocomplete="off"></div>
+    <div class="field"><span>›</span><input type="search" id="search" placeholder="SEARCH NAME, TYPE, COUNTRY…" value="${esc(f.textRaw ?? f.text)}" spellcheck="false" autocomplete="off"></div>
     <div class="statusline"><span>${n ? `<span class="act">${n} FILTER${n > 1 ? 'S' : ''} ACTIVE</span>` : 'NO FILTERS · SHOWING ALL'}</span><button id="reset-filters" ${n ? '' : 'disabled'}>RESET</button></div>
     ${section('presets', '01', 'Quick views', `<div class="chips">${PRESETS.map((p) => `<button class="chip preset ${state.preset === p.id ? 'on' : ''}" data-preset="${p.id}">${esc(p.name.toUpperCase())}<small>${esc(p.hint)}</small></button>`).join('')}</div>`, state.preset !== 'all' ? '● ' + PRESETS.find((p) => p.id === state.preset)?.name.toUpperCase() : '', state.preset !== 'all')}
     ${section('type', '02', 'What', groupBody('cats', CATS), sel('cats', CATS), f.cats.size !== Object.keys(CATS).length)}
@@ -807,21 +809,17 @@ const dot = (e) => `<span class="dt" style="background:${(CATS[e.category] || CA
 function renderList() {
   const pane = $('[data-pane="list"]');
   if (!pane.classList.contains('active')) return;
-  const q = $('#list-search')?.value?.toLowerCase().trim() ?? '';
+  // The search box is created once and never re-rendered, so typing (spaces included) is never disturbed.
+  if (!$('#list-search')) pane.innerHTML = `<div class="field"><span>›</span><input type="search" id="list-search" placeholder="SEARCH VISIBLE ENTRIES…" spellcheck="false" autocomplete="off"></div><div id="list-results"></div>`;
+  const q = fold($('#list-search').value).trim();
   const matches = entries.filter((e) => failMask(e, state.filters) === 0 && (!q || e._search.includes(q)));
   matches.sort((a, b) => (b.source === 'curated') - (a.source === 'curated') || (b.treasure === true) - (a.treasure === true) || a.name.localeCompare(b.name));
-  const keepFocus = document.activeElement?.id === 'list-search';
-  pane.innerHTML = `<div class="field"><span>›</span><input type="search" id="list-search" placeholder="SEARCH VISIBLE ENTRIES…" value="${esc(q)}" spellcheck="false"></div>
+  $('#list-results').innerHTML = `
     <div class="statusline"><span>${num(matches.length)} RESULTS${matches.length > 400 ? ' · FIRST 400' : ''}</span><span>CURATED + ★ FIRST</span></div>
     <div>${matches
       .slice(0, 400)
       .map((e) => `<div class="list-item" data-pick="${e._i}">${dot(e)}<div class="t"><b>${e.treasure ? '<span class="gold">★</span> ' : ''}${esc(e.name)}</b><small>${esc([e.type, e.country].filter(Boolean).join(' · ') || e.summary || '')}</small></div><span class="yr">${esc(fmtYear(e.lostYear))}</span></div>`)
       .join('')}</div>`;
-  if (keepFocus) {
-    const inp = $('#list-search');
-    inp.focus();
-    inp.setSelectionRange(inp.value.length, inp.value.length);
-  }
 }
 
 function renderMyths() {
@@ -949,7 +947,8 @@ document.addEventListener('input', (ev) => {
   if (ev.target.id === 'search') {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
-      state.filters.text = ev.target.value.toLowerCase().trim();
+      state.filters.textRaw = ev.target.value;
+      state.filters.text = fold(ev.target.value).trim();
       state.preset = '';
       applyFilters();
       const sl = $('.statusline span');
