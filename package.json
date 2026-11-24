@@ -9,21 +9,21 @@
     "data:wikidata": "node scripts/fetch-wikidata.mjs && node scripts/fetch-wikidata.mjs --groups=scuttled,disaster,rail,reef,dive --out=wikidata-extra.json && node scripts/fetch-wikidata.mjs --groups=phantom,mythplace --out=wikidata-myths.json",
     "data:build": "node scripts/build-data.mjs",
     "data": "npm run data:wikidata && npm run data:noaa && npm run data:osm && npm run data:verify && npm run data:build",
-    "app": "vite build && electron .",
-    "package": "vite build && electron-builder --mac --dir",
+    "app": "node scripts/ensure-electron.mjs && vite build && electron .",
+    "package": "node scripts/ensure-electron.mjs && vite build && electron-builder --mac --dir",
     "data:noaa": "node scripts/fetch-noaa.mjs",
     "data:osm": "node scripts/fetch-osm.mjs",
     "data:verify": "node scripts/verify-coords.mjs"
   },
   "author": "SlicingReaper",
   "license": "SEE LICENSE IN LICENSE",
-  "description": "KJX \u2014 a world globe of shipwrecks, crashes, sunken vehicles and lost treasure",
+  "description": "KJX — a world globe of shipwrecks, crashes, sunken vehicles and lost treasure",
   "dependencies": {
     "cesium": "^1.123.0"
   },
   "devDependencies": {
-    "electron": "^33.2.1",
-    "electron-builder": "^25.1.8",
+    "electron": "^45.5.0",
+    "electron-builder": "^26.18.0",
     "vite": "^5.4.11",
     "vite-plugin-static-copy": "^2.1.0"
   },
@@ -47,5 +47,15 @@
       "icon": "build/icon.png"
     }
   },
-  "private": true
+  "private": true,
+  "allowScripts": {
+    "electron": true,
+    "esbuild": true,
+    "fsevents": true,
+    "protobufjs": false,
+    "electron-winstaller": false
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
 }

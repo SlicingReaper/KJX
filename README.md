@@ -29,12 +29,29 @@ A treasure-hunting globe for macOS: every mapped shipwreck, plane crash, sunken 
 
 ## Run it
 
+You need **Node.js 22.12 or newer** (the current LTS from [nodejs.org](https://nodejs.org) is fine; Node 26 works too) on a Mac.
+
 ```bash
+git clone https://github.com/SlicingReaper/KJX.git
+cd KJX
 npm install
-npm run dev        # browser version at http://localhost:5199
-npm run app        # desktop window (Electron)
-npm run package    # builds dist-app/mac-arm64/KJX.app
+npm run app        # opens the desktop app
 ```
+
+Other commands:
+
+```bash
+npm run dev        # browser version at http://localhost:5199
+npm run package    # builds dist-app/mac-<arch>/KJX.app; drag it into /Applications
+```
+
+**If `npm run app` says "Electron failed to install correctly":** this happens with older copies of this repo on Node 26, whose npm skips install scripts unless they're approved. Update and reinstall:
+
+```bash
+git pull && rm -rf node_modules && npm install && npm run app
+```
+
+The repo now lists the approved scripts in `package.json` → `allowScripts` (electron, esbuild, fsevents), and `npm run app` checks your Node version and fetches Electron's app files if they're missing.
 
 ## Update the data
 
