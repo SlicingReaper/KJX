@@ -473,7 +473,8 @@ function failMask(e, f) {
 
 function setVis(e, v) {
   e._vis = v;
-  if (e._point.show !== v) e._point.show = v;
+  const show = v && e !== state.selected; // the selected entry is drawn by the selection marker instead
+  if (e._point.show !== show) e._point.show = show;
   if (v) e._cell.visible++;
 }
 let visibleCount = 0;
@@ -514,14 +515,17 @@ function clearArea() {
 function select(e, fly = true) {
   const prev = state.selected;
   state.selected = e;
-  if (prev && prev !== e && failMask(prev, state.filters) !== 0) {
-    prev._vis = false;
-    prev._point.show = false;
+  if (prev && prev !== e) {
+    // give the previous selection its normal marker back (if it still passes the filters)
+    const keep = failMask(prev, state.filters) === 0 && !deepTime;
+    prev._vis = keep;
+    prev._point.show = keep;
   }
-  if (e && !e._vis && !deepTime) {
+  if (e && !deepTime) {
+    if (!e._vis) e._cell.visible++;
     e._vis = true;
-    e._point.show = true;
-    e._cell.visible++;
+    // the selection marker replaces the normal dot — showing both made a "duplicate"
+    e._point.show = false;
   }
   cullDirty = true;
   $('#tooltip').hidden = true;
@@ -541,7 +545,7 @@ function select(e, fly = true) {
         ellipse: {
           semiMajorAxis: r * f,
           semiMinorAxis: r * f,
-          height: 20 + k * 10,
+          height: 2, // all rings at the same level (different heights look off-centre when the camera is tilted)
           material: color.withAlpha(0.1 + k * 0.08),
           outline: true,
           outlineColor: color.withAlpha(k === 0 ? 0.95 : 0.45),
@@ -551,7 +555,7 @@ function select(e, fly = true) {
   });
   areaEntities.push(
     viewer.entities.add({
-      position: Cesium.Cartesian3.fromDegrees(e.lon, e.lat, 40),
+      position: Cesium.Cartesian3.fromDegrees(e.lon, e.lat, 0),
       point: { pixelSize: 10, color, outlineColor: Cesium.Color.fromCssColorString('#04101c'), outlineWidth: 2, disableDepthTestDistance: Number.POSITIVE_INFINITY },
       label: {
         text: e.name.toUpperCase(),
@@ -1051,32 +1055,12 @@ function togglePanel(force) {
 }
 try { if (localStorage.getItem('kjx.nopanel')) togglePanel(true); } catch {}
 
-// Top bar: only in the desktop app and only when windowed. Slides in when the cursor reaches the
-// top edge (so you can drag the window), hides again once you move away.
+// Top bar: only in the desktop app and only when windowed. The main process watches the real cursor
+// and tells us when to show it (reach the top edge) and hide it (move away).
 if (window.kjxApp) {
   document.body.classList.add('desktop');
-  let shown = false, hideTimer = null;
-  const setBar = (v) => {
-    if (v === shown) return;
-    shown = v;
-    document.body.classList.toggle('topbar-on', v);
-    window.kjxApp.setTopBar(v);
-  };
-  window.addEventListener('mousemove', (ev) => {
-    if (document.body.classList.contains('fullscreen')) return;
-    if (ev.clientY <= 14) {
-      clearTimeout(hideTimer);
-      hideTimer = null;
-      setBar(true);
-    } else if (shown && ev.clientY > 48 && !hideTimer) {
-      hideTimer = setTimeout(() => ((hideTimer = null), setBar(false)), 450);
-    }
-  }, { capture: true, passive: true });
-  document.addEventListener('mouseleave', () => shown && (hideTimer ??= setTimeout(() => ((hideTimer = null), setBar(false)), 900)));
-  const setFs = (fs) => {
-    document.body.classList.toggle('fullscreen', fs);
-    if (fs) setBar(false);
-  };
+  window.kjxApp.onTopBar((v) => document.body.classList.toggle('topbar-on', v));
+  const setFs = (fs) => document.body.classList.toggle('fullscreen', fs);
   window.kjxApp.onFullscreen(setFs);
   window.kjxApp.isFullscreen().then(setFs);
 }

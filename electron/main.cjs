@@ -1,6 +1,6 @@
 // KJX desktop shell. Serves the built app from dist/ over a private kjx:// scheme
 // (Cesium's web workers don't run from file:// URLs).
-const { app, BrowserWindow, protocol, net, shell, ipcMain } = require('electron');
+const { app, BrowserWindow, protocol, net, shell, ipcMain, screen } = require('electron');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
@@ -25,6 +25,28 @@ function createWindow() {
   win.setWindowButtonVisibility(false); // traffic lights appear with the auto-hiding top bar
   win.on('enter-full-screen', () => win.webContents.send('ui:fullscreen', true));
   win.on('leave-full-screen', () => { win.webContents.send('ui:fullscreen', false); win.setWindowButtonVisibility(false); });
+  // Auto-hiding top bar, decided here from the real cursor position. (Page mouse events stop as
+  // soon as the cursor is over a drag region, so the page can't tell on its own.)
+  let barShown = false, outsideSince = 0;
+  const setBar = (v) => {
+    if (v === barShown) return;
+    barShown = v;
+    win.setWindowButtonVisibility(v);
+    win.webContents.send('ui:topbar-state', v);
+  };
+  const barTimer = setInterval(() => {
+    if (win.isDestroyed()) return clearInterval(barTimer);
+    if (win.isFullScreen() || win.isMinimized() || !win.isVisible()) return setBar(false);
+    const c = screen.getCursorScreenPoint(), b = win.getContentBounds();
+    const inX = c.x >= b.x && c.x <= b.x + b.width;
+    const dy = c.y - b.y;
+    const want = inX && dy >= -4 && dy <= (barShown ? 46 : 10); // reach the top edge to show; stays while over the bar
+    if (want) { outsideSince = 0; setBar(true); }
+    else if (barShown) {
+      outsideSince ||= Date.now();
+      if (Date.now() - outsideSince > 450) setBar(false);
+    }
+  }, 60);
   win.loadURL('kjx://app/index.html');
   // Open Wikipedia / Wikidata / Maps links in the real browser.
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -47,7 +69,6 @@ app.whenReady().then(() => {
   ipcMain.handle('offline:cancelArea', () => offline.cancelArea());
   offline.onUpdate((st) => BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('offline:update', st)));
   app.on('before-quit', () => { offline.flush(); });
-  ipcMain.on('ui:topbar', (e, v) => { const w = BrowserWindow.fromWebContents(e.sender); if (w && !w.isFullScreen()) w.setWindowButtonVisibility(v); });
   ipcMain.handle('ui:isFullscreen', (e) => BrowserWindow.fromWebContents(e.sender)?.isFullScreen() ?? false);
 
   protocol.handle('kjx', (req) => {

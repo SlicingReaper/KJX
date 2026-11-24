@@ -13,7 +13,7 @@ contextBridge.exposeInMainWorld('kjxOffline', {
 
 // Window chrome: show/hide the macOS traffic lights with the top bar; tell the page about fullscreen.
 contextBridge.exposeInMainWorld('kjxApp', {
-  setTopBar: (visible) => ipcRenderer.send('ui:topbar', !!visible),
+  onTopBar: (fn) => ipcRenderer.on('ui:topbar-state', (_e, v) => fn(v)),
   onFullscreen: (fn) => ipcRenderer.on('ui:fullscreen', (_e, v) => fn(v)),
   isFullscreen: () => ipcRenderer.invoke('ui:isFullscreen'),
 });
