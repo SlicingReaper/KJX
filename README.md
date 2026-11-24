@@ -19,6 +19,13 @@ A treasure-hunting globe for macOS: every mapped shipwreck, plane crash, sunken 
 - **Filters:** quick-view presets, then collapsible sections (type, myth vs. confirmed, lost vs. found, treasure, time, data source). Every option shows a live count.
 - **Positions:** curated wreck positions are cross-checked against Wikipedia coordinates (`npm run data:verify`). Corrections are saved in `scripts/curated/coord-fixes.json`; entries marked `fixedPos` are never changed.
 - **Look:** the terminal-cyan style from the STUDY//TERM widgets.
+- **Offline mode (desktop app), hard 5 GB cap:**
+  - **Pack** (OFFLINE tab → DOWNLOAD PACK, about 2.7 GB, resumable): the data, Wikipedia text plus one photo per entry, all 55 history-border maps, deep-time coastlines (12 ages × 4 models), NASA Blue Marble and GEBCO relief down to zoom 8.
+  - **Browsing cache:** whatever you view from open sources (NASA, GEBCO, EMODnet, Wikipedia/Wikimedia, history and paleo maps) is saved to disk automatically. Esri and OSM tiles are not stored, because their terms don't allow it.
+  - **Download this area:** GEBCO zoom 9–11 plus EMODnet zoom 9–12 for the current view.
+  - **Cap:** pack + cache never exceed 5 GB. The least-recently-used cache files are evicted first (area downloads after normal browsing); the pack is never evicted.
+  - **Offline:** if the connection drops, the globe switches to Blue Marble.
+  - Implementation: `electron/offline.cjs` (storage in `~/Library/Application Support/KJX/offline`).
 
 ## Run it
 

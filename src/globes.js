@@ -6,6 +6,9 @@
 // `tint` applies colour adjustments to the imagery (for "antique"/"sonar" styles).
 
 const esri = (svc) => `https://server.arcgisonline.com/ArcGIS/rest/services/${svc}/MapServer/tile/{z}/{y}/{x}`;
+// GEBCO as Web-Mercator WMS tiles, so the same tile always has the same address (the offline pack relies on it).
+const gebco = (layer) =>
+  `https://wms.gebco.net/mapserv?service=WMS&version=1.1.1&request=GetMap&layers=${layer}&styles=&srs=EPSG:3857&bbox={westProjected},{southProjected},{eastProjected},{northProjected}&width=256&height=256&format=image/jpeg`;
 const gibs = (layer, date, level, ext) =>
   `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/${date}/GoogleMapsCompatible_Level${level}/{z}/{y}/{x}.${ext}`;
 
@@ -15,8 +18,8 @@ export const GLOBE_GROUPS = [
     items: [
       { id: 'esri-imagery', name: 'Satellite (Esri World Imagery)', kind: 'tiles', url: esri('World_Imagery'), max: 19, credit: 'Esri, Maxar, Earthstar Geographics', labels: true },
       { id: 'esri-ocean', name: 'Ocean floor (Esri Ocean Basemap)', kind: 'tiles', url: esri('Ocean/World_Ocean_Base'), max: 13, credit: 'Esri, GEBCO, NOAA, Garmin', overlay: esri('Ocean/World_Ocean_Reference') },
-      { id: 'gebco', name: 'Bathymetry — GEBCO global grid', kind: 'wms', url: 'https://wms.gebco.net/mapserv', layers: 'GEBCO_LATEST', credit: 'GEBCO Compilation Group' },
-      { id: 'gebco-relief', name: 'Bathymetry — GEBCO colour relief', kind: 'wms', url: 'https://wms.gebco.net/mapserv', layers: 'GEBCO_LATEST_2', credit: 'GEBCO Compilation Group' },
+      { id: 'gebco', name: 'Bathymetry — GEBCO global grid', kind: 'tiles', url: gebco('GEBCO_LATEST'), max: 13, credit: 'GEBCO Compilation Group' },
+      { id: 'gebco-relief', name: 'Bathymetry — GEBCO colour relief', kind: 'tiles', url: gebco('GEBCO_LATEST_2'), max: 13, credit: 'GEBCO Compilation Group', offline: 'pack' },
       { id: 'emodnet', name: 'Bathymetry — EMODnet (Europe, high-res)', kind: 'tiles', url: 'https://tiles.emodnet-bathymetry.eu/2020/baselayer/web_mercator/{z}/{x}/{y}.png', max: 12, credit: 'EMODnet Bathymetry Consortium' },
       { id: 'sonar', name: 'Sonar sweep (styled ocean floor)', kind: 'tiles', url: esri('Ocean/World_Ocean_Base'), max: 13, credit: 'Esri, GEBCO', tint: { hue: 0.35, saturation: 1.6, brightness: 0.75, contrast: 1.4, gamma: 0.8 } },
     ],
@@ -24,7 +27,7 @@ export const GLOBE_GROUPS = [
   {
     title: 'NASA — Earth from orbit',
     items: [
-      { id: 'blue-marble', name: 'Blue Marble Next Generation (2004)', kind: 'tiles', url: gibs('BlueMarble_NextGeneration', '2004-08-01', 8, 'jpeg'), max: 8, credit: 'NASA Earth Observatory' },
+      { id: 'blue-marble', name: 'Blue Marble Next Generation (2004)', kind: 'tiles', url: gibs('BlueMarble_NextGeneration', '2004-08-01', 8, 'jpeg'), max: 8, credit: 'NASA Earth Observatory', offline: 'pack' },
       { id: 'blue-marble-bathy', name: 'Blue Marble with bathymetry', kind: 'tiles', url: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/2004-08-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg', max: 8, credit: 'NASA Earth Observatory' },
       { id: 'black-marble', name: 'Black Marble — Earth at night', kind: 'tiles', url: gibs('VIIRS_Black_Marble', '2016-01-01', 8, 'png'), max: 8, credit: 'NASA Black Marble' },
       { id: 'modis', name: 'MODIS true colour — pick a day (2000→today)', kind: 'tiles', dated: true, url: (date) => gibs('MODIS_Terra_CorrectedReflectance_TrueColor', date, 9, 'jpg'), max: 9, credit: 'NASA GIBS / MODIS Terra' },
@@ -63,7 +66,7 @@ export const GLOBE_GROUPS = [
       ['1783', 1783, '1783'], ['1800', 1800, '1800'], ['1815', 1815, '1815 — after Napoleon'], ['1880', 1880, '1880'], ['1900', 1900, '1900'],
       ['1914', 1914, '1914 — World War I'], ['1920', 1920, '1920'], ['1930', 1930, '1930'], ['1938', 1938, '1938 — eve of World War II'], ['1945', 1945, '1945'],
       ['1960', 1960, '1960 — Cold War'], ['1994', 1994, '1994'], ['2000', 2000, '2000'], ['2010', 2010, '2010'],
-    ].map(([file, year, name]) => ({ id: 'hist-' + file, name, kind: 'history', year, file: `world_${file}.geojson`, credit: 'historical-basemaps (A. Ourednik), GPL-3.0' })),
+    ].map(([file, year, name]) => ({ id: 'hist-' + file, name, kind: 'history', year, file: `world_${file}.geojson`, credit: 'historical-basemaps (A. Ourednik), GPL-3.0', offline: 'pack' })),
   },
   {
     title: 'Deep time — Earth millions of years ago',
@@ -71,7 +74,7 @@ export const GLOBE_GROUPS = [
     items: [
       [20, 'Miocene'], [50, 'Eocene'], [66, 'End of the dinosaurs (K–Pg)'], [100, 'Mid-Cretaceous'], [150, 'Late Jurassic'],
       [200, 'Pangaea breaks up'], [250, 'Pangaea (Permian–Triassic)'], [300, 'Carboniferous'], [400, 'Devonian'], [500, 'Cambrian'], [600, 'Ediacaran'], [750, 'Rodinia (Cryogenian)'],
-    ].map(([ma, era]) => ({ id: 'paleo-' + ma, name: `${ma} million years ago — ${era}`, kind: 'paleo', ma, credit: 'GPlates Web Service' })),
+    ].map(([ma, era]) => ({ id: 'paleo-' + ma, name: `${ma} million years ago — ${era}`, kind: 'paleo', ma, credit: 'GPlates Web Service', offline: 'pack' })),
     models: [
       { id: 'MULLER2019', name: 'Müller et al. 2019 (Sydney)', maxMa: 1000 },
       { id: 'MERDITH2021', name: 'Merdith et al. 2021 (Adelaide)', maxMa: 1000 },

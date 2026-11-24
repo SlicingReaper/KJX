@@ -77,7 +77,7 @@ button, input, select { font: inherit; color: inherit; }
 .phead .blink { animation: blink 1.6s steps(1) infinite; }
 @keyframes blink { 0%, 60% { opacity: 1 } 61%, 100% { opacity: 0.25 } }
 .tabs { display: flex; gap: 6px; padding: 0 14px 12px; border-bottom: 1px solid var(--line); }
-.tabs button { flex: 1; padding: 8px 0; font-size: 10px; letter-spacing: 1.5px; font-weight: 700; cursor: pointer; background: var(--inset); border: 1px solid rgba(62, 240, 255, 0.12); color: var(--dim); }
+.tabs button { flex: 1; padding: 8px 0; font-size: 9.5px; letter-spacing: 1px; font-weight: 700; cursor: pointer; background: var(--inset); border: 1px solid rgba(62, 240, 255, 0.12); color: var(--dim); }
 .tabs button:hover { color: var(--text); }
 .tabs button.active { color: var(--c); border-color: rgba(62, 240, 255, 0.53); background: rgba(62, 240, 255, 0.1); box-shadow: 0 0 8px rgba(62, 240, 255, 0.2), inset 0 0 8px rgba(62, 240, 255, 0.1); text-shadow: 0 0 6px var(--c); }
 .pane { display: none; flex: 1; overflow-y: auto; padding: 12px 14px 24px; position: relative; }
@@ -193,3 +193,19 @@ input[type='number']:focus, input[type='date']:focus, select:focus { border-colo
 
 #loading { position: absolute; inset: 0; display: grid; place-items: center; background: #02060d; color: var(--c); font-size: 12px; letter-spacing: 3px; z-index: 20; transition: opacity 0.4s; text-shadow: 0 0 8px var(--c); }
 #loading.done { opacity: 0; pointer-events: none; }
+
+/* offline tab */
+.meter { height: 14px; border: 1px solid rgba(62, 240, 255, 0.4); background: var(--inset); display: flex; margin: 8px 0 6px; }
+.meter i { display: block; height: 100%; }
+.meter .pk { background: var(--c); box-shadow: 0 0 8px var(--c); }
+.meter .ch { background: var(--blue); }
+.mrow { display: flex; justify-content: space-between; font-size: 10px; letter-spacing: 1px; color: var(--dim); margin: 3px 0; }
+.mrow b { color: var(--text); font-weight: 600; }
+.prog { height: 4px; background: var(--inset); margin: 8px 0; }
+.prog i { display: block; height: 100%; background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+.btnrow { display: flex; gap: 6px; margin-top: 8px; }
+.btnrow .tbtn { flex: 1; height: 32px; font-size: 10px; }
+.tbtn.red { color: var(--red); border-color: rgba(255, 95, 109, 0.53); text-shadow: 0 0 6px var(--red); }
+.tbtn:disabled { opacity: 0.35; cursor: default; }
+.offtag { margin-left: auto; font-size: 8.5px; letter-spacing: 1px; color: var(--dim); border: 1px solid rgba(93,122,153,.4); padding: 1px 4px; }
+#netstate.off { color: var(--amber); }

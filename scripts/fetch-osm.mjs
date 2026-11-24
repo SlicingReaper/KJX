@@ -20,7 +20,7 @@ try { cache = JSON.parse(await readFile(CACHE, 'utf8')); } catch {}
 
 // Public Overpass mirrors cap queries at ~45 s, so we ask many small *global* questions that hit
 // the tag index (fast) instead of scanning bounding boxes (slow).
-const CATS = ['dangerous_wreck', 'non-dangerous_wreck', 'distributed_remains_of_wreck', 'wreck_showing_mast/masts', 'wreck_showing_any_portion_of_hull_or_superstructure', 'hull_showing', 'mast_showing'];
+const CATS = ['hull_showing', 'dangerous', 'non-dangerous', 'distributed_remains', 'hull_visible', 'mast_showing'];
 const QUERIES = [
   ['aircraft', 'nwr["historic"="aircraft_wreck"]'],
   ['hist-node', 'node["historic"="wreck"]'],

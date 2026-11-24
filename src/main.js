@@ -416,6 +416,7 @@ async function loadData() {
     e.treasure ??= false;
     e.radiusKm ??= 0.2;
     e.source ??= 'wikidata';
+    if (e.image) e.image = e.image.replace(/\?width=\d+/, '?width=500');
     const cat = CATS[e.category] || CATS.ship;
     const curated = e.source === 'curated';
     const ck = Math.floor((e.lat + 90) / 10) * 36 + Math.floor((e.lon + 180) / 10);
@@ -650,7 +651,8 @@ async function renderDetail(e) {
   if (!e.wiki) return;
   const s = await wikiSummary(e.wiki);
   if (state.selected !== e || !s) return;
-  const img = s.originalimage?.source || s.thumbnail?.source;
+  // 500 px thumbnail: a standard Wikimedia size, and the one the offline pack stores
+  const img = s.thumbnail?.source ? s.thumbnail.source.replace(/\/\d+px-([^/?]+)(\?.*)?$/, '/500px-$1') : s.originalimage?.source;
   if (img && !e.image) $('.img-slot', body).innerHTML = `<img class="detail-img" src="${esc(img)}" alt="" onerror="this.remove()">`;
   if (s.extract && s.extract.length > (e.summary || '').length * 0.8) {
     $('.wiki-extract', body).innerHTML = `<p style="color:#8fa9c0">${esc(s.extract)}</p><p class="dim" style="font-size:9px;letter-spacing:1.5px">— SOURCE: WIKIPEDIA</p>`;
@@ -674,7 +676,7 @@ function optRow({ group, value, label, color, on, count, radio }) {
 // ───────────────────────── panel: globes ─────────────────────────
 function renderGlobes() {
   const pane = $('[data-pane="globes"]');
-  const item = (g) => `<button class="gitem ${state.globe === g.id ? 'active' : ''}" data-globe="${g.id}">${esc(g.name)}</button>`;
+  const item = (g) => `<button class="gitem ${state.globe === g.id ? 'active' : ''}" data-globe="${g.id}">${esc(g.name)}${g.offline && window.kjxOffline && g.kind !== 'history' ? '<span class="offtag">OFFLINE</span>' : ''}</button>`;
   let html = GLOBE_GROUPS.map((grp, gi) => {
     const id = 'g' + gi;
     const isHistory = grp.items[0].kind === 'history';
@@ -808,6 +810,11 @@ function setBusy(msg) {
 }
 
 document.addEventListener('click', (ev) => {
+  const o = ev.target.closest('[data-off]');
+  if (o && window.kjxOffline) {
+    offlineAction(o.dataset.off);
+    return;
+  }
   const t = ev.target.closest('[data-tab],[data-globe],[data-pick],[data-seg],[data-range],[data-zoom],[data-copy],[data-toggle],[data-preset],[data-all],[data-none],#reset-filters,#detail .close');
   if (!t) return;
   const f = state.filters;
@@ -815,6 +822,7 @@ document.addEventListener('click', (ev) => {
     document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('active', b === t));
     document.querySelectorAll('.pane').forEach((p) => p.classList.toggle('active', p.dataset.pane === t.dataset.tab));
     if (t.dataset.tab === 'list') renderList();
+    if (t.dataset.tab === 'offline') renderOffline();
   } else if (t.dataset.toggle) {
     const id = t.dataset.toggle;
     state.open.has(id) ? state.open.delete(id) : state.open.add(id);
@@ -952,6 +960,84 @@ handler.setInputAction((ev) => {
   });
 }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
+// ───────────────────────── offline mode ─────────────────────────
+const GB = 1024 ** 3;
+const fmtBytes = (b) => (b >= GB ? (b / GB).toFixed(2) + ' GB' : (b / 1024 ** 2).toFixed(0) + ' MB');
+let offStatus = null;
+let areaEstimate = null;
+function viewBox() {
+  const r = camera.computeViewRectangle();
+  if (!r) return null;
+  const d = Cesium.Math.toDegrees;
+  return [d(r.west), d(r.south), d(r.east), d(r.north)].map((v) => +v.toFixed(4));
+}
+async function offlineAction(a) {
+  const api = window.kjxOffline;
+  if (a === 'start') await api.startPack();
+  if (a === 'pause') await api.pausePack();
+  if (a === 'clear' && confirm('Delete all cached tiles and pictures you browsed? (The offline pack stays.)')) await api.clearCache();
+  if (a === 'estimate') {
+    const box = viewBox();
+    areaEstimate = box ? { box, ...(await api.estimateArea(box)) } : null;
+    renderOffline();
+  }
+  if (a === 'area' && areaEstimate) await api.downloadArea(areaEstimate.box);
+  if (a === 'cancel-area') await api.cancelArea();
+}
+function renderOffline() {
+  const pane = $('[data-pane="offline"]');
+  if (!pane.classList.contains('active')) return;
+  if (!window.kjxOffline) {
+    pane.innerHTML = '<p class="note">Offline mode is part of the desktop app (KJX.app). In the browser version, everything loads live.</p>';
+    return;
+  }
+  const s = offStatus;
+  if (!s) return void (pane.innerHTML = '<p class="note">Reading storage…</p>');
+  const used = s.packBytes + s.cacheBytes;
+  const pct = (b) => Math.min(100, (b / s.cap) * 100).toFixed(2) + '%';
+  const p = s.pack, a = s.area;
+  const ppct = p.total ? (p.done / p.total) * 100 : p.finished ? 100 : 0;
+  pane.innerHTML = `
+    <div class="statusline"><span>STATUS: <span id="netstate2" class="${navigator.onLine ? 'glow' : 'act'}">${navigator.onLine ? '● ONLINE' : '○ OFFLINE'}</span></span><span>CAP ${fmtBytes(s.cap)}</span></div>
+    <div class="meter"><i class="pk" style="width:${pct(s.packBytes)}"></i><i class="ch" style="width:${pct(s.cacheBytes)}"></i></div>
+    <div class="mrow"><span><span class="glow">■</span> OFFLINE PACK</span><b>${fmtBytes(s.packBytes)} · ${num(s.packFiles)} files</b></div>
+    <div class="mrow"><span style="color:var(--blue)">■ BROWSING CACHE</span><b>${fmtBytes(s.cacheBytes)} · ${num(s.cacheFiles)} files</b></div>
+    <div class="mrow"><span>FREE OF 5 GB</span><b>${fmtBytes(Math.max(0, s.cap - used))}</b></div>
+    <p class="note" style="margin-top:8px">Hard limit 5 GB. When it fills up, the least-recently-viewed cached tiles and pictures are deleted first. The offline pack is never deleted.</p>
+    ${section('offpack', '01', 'Offline pack', `
+      <p class="note">Works with no internet: all ${num(entries.length)} records, Wikipedia text + one photo per entry, all 55 history-border maps, deep-time coastlines (12 ages × 4 models), NASA Blue Marble and GEBCO ocean-floor maps down to zoom 8. About 2.7 GB; the download resumes where it stopped.</p>
+      <div class="mrow"><span>${esc((p.running ? '▶ ' : '') + (p.phase === 'idle' ? '' : p.phase || '').toUpperCase())}</span><b>${p.total ? `${num(p.done)} / ${num(p.total)}` : p.finished ? 'COMPLETE ✓' : s.packFiles ? 'PARTLY DOWNLOADED' : 'NOT STARTED'}</b></div>
+      <div class="prog"><i style="width:${ppct.toFixed(1)}%"></i></div>
+      ${p.failed ? `<div class="mrow"><span>SKIPPED (unavailable)</span><b>${num(p.failed)}</b></div>` : ''}
+      ${p.error ? `<p class="note" style="color:var(--red)">${esc(p.error)}</p>` : ''}
+      <div class="btnrow">${p.running ? '<button class="tbtn red" data-off="pause">PAUSE</button>' : `<button class="tbtn" data-off="start">${p.finished ? 'CHECK FOR GAPS' : p.done || s.packFiles ? 'RESUME DOWNLOAD' : 'DOWNLOAD PACK'}</button>`}</div>`, p.finished ? '✓ READY' : p.running ? '▶ ' + Math.round(ppct) + '%' : '', p.running)}
+    ${section('offarea', '02', 'Download this area', `
+      <p class="note">High-resolution ocean-floor tiles for what's on screen right now: GEBCO zoom 9–11 everywhere, plus EMODnet zoom 9–12 in European waters. Counts toward the 5 GB cap. Zoom to a region first.</p>
+      ${areaEstimate ? `<div class="mrow"><span>AREA</span><b>${areaEstimate.box.map((v) => v.toFixed(1)).join(', ')}</b></div><div class="mrow"><span>ESTIMATE</span><b>${num(areaEstimate.tiles)} tiles ≈ ${fmtBytes(areaEstimate.bytes)}</b></div>${areaEstimate.tiles > 60000 ? '<p class="note" style="color:var(--amber)">Very large area — zoom in further, or this could fill most of your 5 GB.</p>' : ''}` : ''}
+      ${a.total ? `<div class="mrow"><span>${a.running ? '▶ DOWNLOADING' : 'LAST AREA'}</span><b>${num(a.done)} / ${num(a.total)}</b></div><div class="prog"><i style="width:${((a.done / a.total) * 100).toFixed(1)}%"></i></div>` : ''}
+      ${a.error ? `<p class="note" style="color:var(--red)">${esc(a.error)}</p>` : ''}
+      <div class="btnrow"><button class="tbtn" data-off="estimate">MEASURE VIEW</button>${a.running ? '<button class="tbtn red" data-off="cancel-area">STOP</button>' : `<button class="tbtn" data-off="area" ${areaEstimate && areaEstimate.tiles > 0 ? '' : 'disabled'}>DOWNLOAD</button>`}</div>`, a.running ? '▶ ' + Math.round((a.done / Math.max(1, a.total)) * 100) + '%' : '', a.running)}
+    ${section('offcache', '03', 'Browsing cache', `
+      <p class="note">Map tiles from NASA, GEBCO and EMODnet, Wikipedia text and photos, history and deep-time maps you've viewed are kept automatically. Esri and OpenStreetMap maps aren't stored (their terms don't allow it), so they need internet.</p>
+      <div class="btnrow"><button class="tbtn red" data-off="clear" ${s.cacheFiles ? '' : 'disabled'}>CLEAR CACHE</button></div>`, fmtBytes(s.cacheBytes))}`;
+}
+function updateNetState() {
+  const on = navigator.onLine;
+  $('#online').innerHTML = `<span class="blink ${on ? 'glow' : ''}" style="${on ? '' : 'color:var(--amber)'}">●</span> <span class="dim">${num(entries.length)} RECORDS · </span><span id="netstate" class="${on ? 'glow' : 'off'}">${on ? 'ONLINE' : 'OFFLINE'}</span>`;
+  // Offline and on a globe that needs the internet → fall back to Blue Marble (in the offline pack).
+  if (!on && !findGlobe(state.globe)?.offline) setGlobe('blue-marble');
+  renderOffline();
+}
+window.addEventListener('online', updateNetState);
+window.addEventListener('offline', updateNetState);
+if (window.kjxOffline) {
+  window.kjxOffline.onUpdate((s) => {
+    offStatus = s;
+    renderOffline();
+  });
+  window.kjxOffline.status().then((s) => ((offStatus = s), renderOffline()));
+}
+
 // ───────────────────────── boot ─────────────────────────
 renderGlobes();
 await setGlobe(state.globe);
@@ -959,6 +1045,6 @@ await loadData();
 applyFilters();
 renderFilters();
 renderMyths();
-$('#online').innerHTML = `<span class="blink glow">●</span> <span class="dim">${num(entries.length)} RECORDS</span>`;
+updateNetState();
 setBusy(null);
 window.kjx = { viewer, entries, state, select, setGlobe };

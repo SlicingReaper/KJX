@@ -103,6 +103,7 @@ for (const src of [noaa, osm]) {
 
 // Compact output: drop default values (the app fills them back in).
 for (const e of out) {
+  if (e.image) e.image = e.image.replace(/\?width=\d+/, '?width=500'); // Wikimedia only serves standard thumbnail widths
   if (e.lostYear === undefined && e.lost !== undefined) e.lostYear = parseInt(String(e.lost), 10);
   if (Number.isNaN(e.lostYear)) delete e.lostYear;
   if (e.veracity === 'confirmed') delete e.veracity;

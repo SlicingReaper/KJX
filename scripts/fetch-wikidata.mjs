@@ -147,7 +147,7 @@ function toEntry(groupKey, id, pos, r) {
     operator: str(r.operator),
     aircraft: str(r.vessel),
     summary: description,
-    image: r.image ? r.image.value.replace(/^http:/, 'https:') + '?width=640' : null,
+    image: r.image ? r.image.value.replace(/^http:/, 'https:') + '?width=500' : null,
     wiki: r.wiki ? decodeURIComponent(r.wiki.value.split('/wiki/')[1]) : null,
     wikidata: id,
     source: 'wikidata',
