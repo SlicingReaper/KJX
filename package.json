@@ -15,9 +15,9 @@
     "data:osm": "node scripts/fetch-osm.mjs",
     "data:verify": "node scripts/verify-coords.mjs"
   },
-  "author": "X",
-  "license": "UNLICENSED",
-  "description": "KJX — a world globe of shipwrecks, crashes, sunken vehicles and lost treasure",
+  "author": "SlicingReaper",
+  "license": "SEE LICENSE IN LICENSE",
+  "description": "KJX \u2014 a world globe of shipwrecks, crashes, sunken vehicles and lost treasure",
   "dependencies": {
     "cesium": "^1.123.0"
   },

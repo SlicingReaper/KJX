@@ -1,0 +1,9 @@
+Copyright (c) 2026 SlicingReaper. All rights reserved.
+
+This repository is public so it can be viewed. No permission is granted to copy,
+modify, distribute, sublicense or sell this software or any part of it, or to use
+it in other projects, without prior written permission from the copyright holder.
+
+Third-party components keep their own licences (CesiumJS: Apache-2.0; Electron: MIT;
+historical-basemaps data: GPL-3.0; Wikidata: CC0; OpenStreetMap data: ODbL; NOAA data:
+public domain). Map imagery is loaded from its providers under their own terms.

@@ -54,3 +54,7 @@ Curated entries live in `scripts/curated/`, one file per theme (treasure ships, 
 - You need an internet connection: map tiles, historical borders, paleo coastlines and Wikipedia pictures all load live.
 - Locations are best public estimates. Some, like the San José, are state secrets. Wikidata entries are only as accurate as Wikidata.
 - Built with CesiumJS, Vite and Electron. Data and maps come from Wikidata, Wikipedia, Esri, NASA GIBS, GEBCO, EMODnet, OpenStreetMap, OpenTopoMap, [historical-basemaps](https://github.com/aourednik/historical-basemaps) (GPL-3.0) and the GPlates Web Service.
+
+## Licence
+
+All rights reserved. See [LICENSE](LICENSE). The code is public to view, but not to copy or reuse without permission.
