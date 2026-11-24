@@ -91,7 +91,7 @@ const PRESETS = [
 const state = {
   globe: 'esri-imagery',
   modisDate: isoDaysAgo(3),
-  paleoModel: 'MULLER2019',
+  paleoModel: 'MERDITH2021',
   overlays: { labels: true, grid: false, routes: false, oceanRef: false },
   filters: DEFAULT_FILTERS(),
   preset: 'all',
@@ -290,6 +290,19 @@ async function setGlobe(id) {
   applyFilters();
 }
 
+const histUrl = (g) => `https://raw.githubusercontent.com/aourednik/historical-basemaps/master/geojson/${g.file}`;
+const paleoUrl = (model, ma) => `https://gws.gplates.org/reconstruct/coastlines/?time=${ma}&model=${model}&avoid_map_boundary`;
+const paleoModel = () => GLOBE_GROUPS.find((x) => x.models).models.find((m) => m.id === state.paleoModel);
+// Non-blocking message in the loading strip (instead of a modal alert).
+function notify(msg) {
+  const l = $('#loading');
+  l.textContent = '! ' + msg.toUpperCase();
+  l.classList.remove('done');
+  l.style.background = 'rgba(2,6,13,0.7)';
+  l.style.color = 'var(--amber)';
+  clearTimeout(notify.t);
+  notify.t = setTimeout(() => { l.classList.add('done'); l.style.color = ''; }, 4500);
+}
 const hashColor = (name) => {
   let h = 0;
   for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
@@ -299,7 +312,7 @@ const hashColor = (name) => {
 async function loadHistory(g) {
   setBusy(`> LOADING THE WORLD IN ${g.name.toUpperCase()}_`);
   try {
-    const url = `https://raw.githubusercontent.com/aourednik/historical-basemaps/master/geojson/${g.file}`;
+    const url = histUrl(g);
     const ds = await Cesium.GeoJsonDataSource.load(url, { stroke: Cesium.Color.fromCssColorString('#3a2a14'), strokeWidth: 1, fill: Cesium.Color.TRANSPARENT });
     if (state.globe !== g.id) return;
     const best = new Map();
@@ -331,7 +344,7 @@ async function loadHistory(g) {
     }
   } catch (err) {
     console.error(err);
-    alert('Could not load historical map — are you online?');
+    notify(navigator.onLine ? 'Could not load this historical map — try again in a moment.' : 'You are offline and this historical map is not stored yet (download the offline pack while online).');
   } finally {
     setBusy(null);
   }
@@ -341,8 +354,7 @@ async function loadPaleo(g) {
   setBusy(`> REWINDING PLATE TECTONICS ${g.ma} MILLION YEARS_`);
   scene.globe.baseColor = Cesium.Color.fromCssColorString('#1d4f7a');
   try {
-    const model = GLOBE_GROUPS.find((x) => x.models).models.find((m) => m.id === state.paleoModel);
-    const url = `https://gws.gplates.org/reconstruct/coastlines/?time=${Math.min(g.ma, model.maxMa)}&model=${state.paleoModel}&avoid_map_boundary`;
+    const url = paleoUrl(state.paleoModel, g.ma);
     const ds = await Cesium.GeoJsonDataSource.load(url, { fill: Cesium.Color.fromCssColorString('#c9b27c'), stroke: Cesium.Color.fromCssColorString('#7a6338'), strokeWidth: 1 });
     if (state.globe !== g.id) return;
     for (const ent of ds.entities.values) if (ent.polygon) ent.polygon.outline = false;
@@ -350,7 +362,7 @@ async function loadPaleo(g) {
     await viewer.dataSources.add(ds);
   } catch (err) {
     console.error(err);
-    alert('Could not reach the GPlates web service — are you online?');
+    notify(navigator.onLine ? 'The GPlates service did not answer — try again in a moment, or pick another plate model.' : 'You are offline and this deep-time map is not stored yet (download the offline pack while online).');
   } finally {
     setBusy(null);
   }
@@ -681,7 +693,9 @@ function optRow({ group, value, label, color, on, count, radio }) {
 // ───────────────────────── panel: globes ─────────────────────────
 function renderGlobes() {
   const pane = $('[data-pane="globes"]');
-  const item = (g) => `<button class="gitem ${state.globe === g.id ? 'active' : ''}" data-globe="${g.id}">${esc(g.name)}${g.offline && window.kjxOffline && g.kind !== 'history' ? '<span class="offtag">OFFLINE</span>' : ''}</button>`;
+  const tooOld = (g) => g.kind === 'paleo' && g.ma > paleoModel().maxMa;
+  const item = (g) =>
+    `<button class="gitem ${state.globe === g.id ? 'active' : ''} ${tooOld(g) ? 'disabled' : ''}" data-globe="${g.id}" ${tooOld(g) ? `title="Older than this plate model covers — pick another model"` : ''}>${esc(g.name)}${tooOld(g) ? '<span class="offtag">BEYOND MODEL</span>' : g.offline && window.kjxOffline ? `<span class="offtag" data-avail="${g.id}" title="Included in the offline pack — download it in the OFFLINE tab">⬇${g.kind === 'history' ? '' : ' PACK'}</span>` : ''}</button>`;
   let html = GLOBE_GROUPS.map((grp, gi) => {
     const id = 'g' + gi;
     const isHistory = grp.items[0].kind === 'history';
@@ -704,6 +718,30 @@ function renderGlobes() {
      <p class="note" style="margin-top:8px">Big dots are curated files with full detail. Small dots come from Wikidata, NOAA charts and OpenStreetMap; the smallest are unnamed charted wrecks.</p>`,
   );
   pane.innerHTML = html;
+  markAvailability();
+}
+// Replace "⬇ PACK" with "✓ OFFLINE" for items that are actually stored on this Mac.
+async function markAvailability() {
+  if (!window.kjxOffline) return;
+  const tags = [...document.querySelectorAll('[data-avail]')];
+  const urlFor = (id) => {
+    const g = findGlobe(id);
+    if (g.kind === 'history') return histUrl(g);
+    if (g.kind === 'paleo') return paleoUrl(state.paleoModel, g.ma);
+    return null;
+  };
+  const st = offStatus || (await window.kjxOffline.status());
+  const urls = tags.map((t) => urlFor(t.dataset.avail));
+  const res = await window.kjxOffline.has(urls.map((u) => u || 'about:blank'));
+  tags.forEach((t, i) => {
+    const g = findGlobe(t.dataset.avail);
+    const ok = urls[i] ? !!res[i] : st.pack.finished; // tile globes: complete once the pack is finished
+    if (!ok) return;
+    t.textContent = g.kind === 'history' ? '✓' : '✓ OFFLINE';
+    t.title = 'Stored on this Mac — works without internet';
+    t.style.color = 'var(--green)';
+    t.style.borderColor = 'rgba(61,255,127,.45)';
+  });
 }
 
 // ───────────────────────── panel: filters ─────────────────────────
@@ -834,8 +872,11 @@ document.addEventListener('click', (ev) => {
     const sec = t.closest('.sec');
     sec.classList.toggle('open');
     $('.ar', sec).textContent = sec.classList.contains('open') ? '▾' : '▸';
-  } else if (t.dataset.globe) setGlobe(t.dataset.globe);
-  else if (t.dataset.pick) select(entries[+t.dataset.pick]);
+  } else if (t.dataset.globe) {
+    const g = findGlobe(t.dataset.globe);
+    if (g.kind === 'paleo' && g.ma > paleoModel().maxMa) notify(`${paleoModel().name.split(' ·')[0]} only goes back ${paleoModel().maxMa} million years — pick another plate model above.`);
+    else setGlobe(t.dataset.globe);
+  } else if (t.dataset.pick) select(entries[+t.dataset.pick]);
   else if (t.dataset.preset) {
     const p = PRESETS.find((x) => x.id === t.dataset.preset);
     state.filters = { ...DEFAULT_FILTERS(), ...p.apply() };
@@ -892,7 +933,14 @@ document.addEventListener('change', (ev) => {
     setGlobe('modis');
   } else if (t.id === 'paleo-model') {
     state.paleoModel = t.value;
-    if (findGlobe(state.globe)?.kind === 'paleo') setGlobe(state.globe);
+    const cur = findGlobe(state.globe);
+    if (cur?.kind === 'paleo') {
+      if (cur.ma > paleoModel().maxMa) {
+        const fallback = [...GLOBE_GROUPS.find((x) => x.models).items].reverse().find((x) => x.ma <= paleoModel().maxMa);
+        notify(`This model only goes back ${paleoModel().maxMa} million years — showing ${fallback.ma} Ma instead.`);
+        setGlobe(fallback.id);
+      } else setGlobe(state.globe);
+    } else renderGlobes();
   }
 });
 

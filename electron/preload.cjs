@@ -2,6 +2,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('kjxOffline', {
   status: () => ipcRenderer.invoke('offline:status'),
+  has: (urls) => ipcRenderer.invoke('offline:has', urls),
   startPack: () => ipcRenderer.invoke('offline:startPack'),
   pausePack: () => ipcRenderer.invoke('offline:pausePack'),
   clearCache: () => ipcRenderer.invoke('offline:clearCache'),

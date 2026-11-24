@@ -75,11 +75,18 @@ export const GLOBE_GROUPS = [
       [20, 'Miocene'], [50, 'Eocene'], [66, 'End of the dinosaurs (K–Pg)'], [100, 'Mid-Cretaceous'], [150, 'Late Jurassic'],
       [200, 'Pangaea breaks up'], [250, 'Pangaea (Permian–Triassic)'], [300, 'Carboniferous'], [400, 'Devonian'], [500, 'Cambrian'], [600, 'Ediacaran'], [750, 'Rodinia (Cryogenian)'],
     ].map(([ma, era]) => ({ id: 'paleo-' + ma, name: `${ma} million years ago — ${era}`, kind: 'paleo', ma, credit: 'GPlates Web Service', offline: 'pack' })),
+    // Valid age ranges as reported by the GPlates Web Service (Nov 2026). Ages beyond a model are greyed out.
     models: [
-      { id: 'MULLER2019', name: 'Müller et al. 2019 (Sydney)', maxMa: 1000 },
-      { id: 'MERDITH2021', name: 'Merdith et al. 2021 (Adelaide)', maxMa: 1000 },
-      { id: 'ZAHIROVIC2022', name: 'Zahirovic et al. 2022', maxMa: 410 },
-      { id: 'PALEOMAP', name: 'Scotese PALEOMAP (Texas)', maxMa: 750 },
+      { id: 'MERDITH2021', name: 'Merdith et al. 2021 · 0–1000 Ma', maxMa: 1000 },
+      { id: 'MULLER2022', name: 'Müller et al. 2022 · 0–1000 Ma', maxMa: 1000 },
+      { id: 'PALEOMAP', name: 'Scotese PALEOMAP · 0–750 Ma', maxMa: 750 },
+      { id: 'SCOTESE2016', name: 'Scotese 2016 · 0–750 Ma', maxMa: 750 },
+      { id: 'TorsvikCocks2017', name: 'Torsvik & Cocks 2017 · 0–540 Ma', maxMa: 540 },
+      { id: 'GOLONKA', name: 'Golonka · 0–540 Ma', maxMa: 540 },
+      { id: 'ZAHIROVIC2022', name: 'Zahirovic et al. 2022 · 0–410 Ma', maxMa: 410 },
+      { id: 'MATTHEWS2016_pmag_ref', name: 'Matthews et al. 2016 · 0–410 Ma', maxMa: 410 },
+      { id: 'MULLER2019', name: 'Müller et al. 2019 · 0–250 Ma', maxMa: 250 },
+      { id: 'SETON2012', name: 'Seton et al. 2012 · 0–200 Ma', maxMa: 200 },
     ],
   },
 ];

@@ -61,6 +61,7 @@ app.whenReady().then(() => {
   offline.install();
   const dataFile = path.join(DIST, 'data', 'kjx.json');
   ipcMain.handle('offline:status', () => offline.status());
+  ipcMain.handle('offline:has', (_e, urls) => offline.has(urls));
   ipcMain.handle('offline:startPack', () => { offline.startPack(dataFile); });
   ipcMain.handle('offline:pausePack', () => offline.pausePack());
   ipcMain.handle('offline:clearCache', () => offline.clearCache());

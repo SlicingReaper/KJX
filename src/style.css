@@ -233,3 +233,7 @@ body.topbar-on #brand { top: 46px; }
 #hud { pointer-events: auto; }
 #hud .credits { background: none; border: 0; color: var(--dim); cursor: pointer; font: inherit; padding: 0 0 0 4px; }
 #hud .credits:hover { color: var(--c); }
+
+.gitem.disabled { color: var(--dim); opacity: 0.55; cursor: not-allowed; }
+.gitem.disabled:hover { background: none; }
+.hgrid .offtag { padding: 0 3px; }

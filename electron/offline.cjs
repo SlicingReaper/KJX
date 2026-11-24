@@ -185,7 +185,8 @@ function install() {
 // ───────────────────────── the offline pack ─────────────────────────
 const HISTORY = ['bc123000', 'bc10000', 'bc8000', 'bc5000', 'bc4000', 'bc3000', 'bc2000', 'bc1500', 'bc1000', 'bc700', 'bc500', 'bc400', 'bc323', 'bc300', 'bc200', 'bc100', 'bc1', '100', '200', '300', '400', '500', '600', '700', '800', '900', '1000', '1100', '1200', '1279', '1300', '1400', '1492', '1500', '1530', '1600', '1650', '1700', '1715', '1783', '1800', '1815', '1880', '1900', '1914', '1920', '1930', '1938', '1945', '1960', '1994', '2000', '2010'];
 const PALEO_AGES = [20, 50, 66, 100, 150, 200, 250, 300, 400, 500, 600, 750];
-const PALEO_MODELS = { MULLER2019: 1000, MERDITH2021: 1000, ZAHIROVIC2022: 410, PALEOMAP: 750 };
+const PALEO_MODELS = { MERDITH2021: 1000, MULLER2022: 1000, PALEOMAP: 750, SCOTESE2016: 750, TorsvikCocks2017: 540, GOLONKA: 540, ZAHIROVIC2022: 410, MATTHEWS2016_pmag_ref: 410, MULLER2019: 250, SETON2012: 200 }; // valid ranges per GPlates
+const paleoUrl = (model, ma) => `https://gws.gplates.org/reconstruct/coastlines/?time=${ma}&model=${model}&avoid_map_boundary`;
 const BM = (z, x, y) => `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGeneration/default/2004-08-01/GoogleMapsCompatible_Level8/${z}/${y}/${x}.jpeg`;
 const tileBounds = (z, x, y) => {
   const size = (2 * HALF) / 2 ** z;
@@ -205,7 +206,7 @@ async function packPhases(dataFile) {
   const tileCount = (z0, z1) => [...Array(z1 - z0 + 1)].reduce((n, _, i) => n + 4 ** (z0 + i), 0);
   return [
     { name: 'History borders', total: HISTORY.length, conc: 3, jobs: () => HISTORY.map((f) => `https://raw.githubusercontent.com/aourednik/historical-basemaps/master/geojson/world_${f}.geojson`) },
-    { name: 'Paleo coastlines', total: PALEO_AGES.length * 4, conc: 2, jobs: () => Object.entries(PALEO_MODELS).flatMap(([m, max]) => PALEO_AGES.map((a) => `https://gws.gplates.org/reconstruct/coastlines/?time=${Math.min(a, max)}&model=${m}&avoid_map_boundary`)) },
+    { name: 'Paleo coastlines', total: Object.values(PALEO_MODELS).reduce((n, max) => n + PALEO_AGES.filter((a) => a <= max).length, 0), conc: 2, jobs: () => Object.entries(PALEO_MODELS).flatMap(([m, max]) => PALEO_AGES.filter((a) => a <= max).map((a) => paleoUrl(m, a))) },
     { name: 'Wikipedia text & photos', total: entries.filter((e) => e.wiki).length, conc: 4, wiki: true, jobs: () => entries.filter((e) => e.wiki).map((e) => wikiUrl(e.wiki)) },
     { name: 'Entry photos', total: entries.filter((e) => e.image).length, conc: 4, jobs: () => entries.filter((e) => e.image).map((e) => e.image.replace(/\?width=\d+/, '?width=500')) },
     { name: 'NASA Blue Marble z0–8', total: tileCount(0, 8), conc: 8, jobs: () => tiles(0, 8, BM) },
@@ -332,7 +333,11 @@ async function downloadArea(bbox) {
   emit();
 }
 
+// Which of these URLs are stored on disk (pack or cache)?
+const has = (urls) => urls.map((u) => { const k = canonicalKey(u); return pack[k] ? 'pack' : cache[k] ? 'cache' : null; });
+
 module.exports = {
+  has,
   install,
   status,
   startPack,
