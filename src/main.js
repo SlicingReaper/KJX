@@ -248,9 +248,20 @@ scene.postRender.addEventListener(() => {
 });
 
 // ───────────────────────── globes ─────────────────────────
-function tileProvider(g) {
+// Esri maps go through Cesium's ArcGIS loader: it reads each service's real zoom limits and discards Esri's
+// grey "Map data not yet available" placeholder tiles, so the globe keeps showing the most detailed real
+// imagery instead (a little softer past the limit, never the grey box). Everything else is a plain XYZ template.
+const ESRI_TILE = /^https:\/\/server\.arcgisonline\.com\/ArcGIS\/rest\/services\/(.+)\/MapServer\/tile\//;
+function imageryLayer(url, { max = 18, credit = '' } = {}) {
+  const m = ESRI_TILE.exec(url);
+  const provider = m
+    ? Cesium.ArcGisMapServerImageryProvider.fromUrl(`https://server.arcgisonline.com/ArcGIS/rest/services/${m[1]}/MapServer`, { enablePickFeatures: false })
+    : Promise.resolve(new Cesium.UrlTemplateImageryProvider({ url, maximumLevel: max, credit: new Cesium.Credit(credit) }));
+  return Cesium.ImageryLayer.fromProviderAsync(provider);
+}
+function tileLayer(g) {
   const url = typeof g.url === 'function' ? g.url(state.modisDate) : g.url;
-  return new Cesium.UrlTemplateImageryProvider({ url, maximumLevel: g.max ?? 18, credit: new Cesium.Credit(g.credit || '') });
+  return imageryLayer(url, { max: g.max ?? 18, credit: g.credit || '' });
 }
 
 async function setGlobe(id) {
@@ -268,20 +279,18 @@ async function setGlobe(id) {
   deepTime = false;
   scene.globe.baseColor = OCEAN;
 
-  const addBase = (provider, tint, index = 0) => {
-    const layer = viewer.imageryLayers.addImageryProvider(provider, index);
+  const addBase = (layer, tint, index = 0) => {
+    viewer.imageryLayers.add(layer, index);
     if (tint) Object.assign(layer, tint);
     baseLayers.push(layer);
   };
   renderGlobes();
   if (g.kind === 'tiles') {
-    addBase(tileProvider(g), g.tint);
-    if (g.overlay) addBase(new Cesium.UrlTemplateImageryProvider({ url: g.overlay, maximumLevel: 13 }), null, 1);
-  } else if (g.kind === 'wms') {
-    addBase(new Cesium.WebMapServiceImageryProvider({ url: g.url, layers: g.layers, parameters: { format: 'image/jpeg', transparent: false }, credit: new Cesium.Credit(g.credit) }));
+    addBase(tileLayer(g), g.tint);
+    if (g.overlay) addBase(imageryLayer(g.overlay, { max: 13 }), null, 1);
   } else if (g.kind === 'history') {
     historyYear = g.year;
-    addBase(new Cesium.UrlTemplateImageryProvider({ url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}', maximumLevel: 13, credit: new Cesium.Credit('Esri') }), { saturation: 0.3, brightness: 1.05, hue: 0.06 });
+    addBase(imageryLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}'), { saturation: 0.3, brightness: 1.05, hue: 0.06 });
     await loadHistory(g);
   } else if (g.kind === 'paleo') {
     deepTime = true;
@@ -395,10 +404,10 @@ function setOverlay(key, on) {
     return;
   }
   if (!on) return;
-  const tile = (url, max) => new Cesium.UrlTemplateImageryProvider({ url, maximumLevel: max, credit: new Cesium.Credit('Esri') });
-  if (key === 'labels') overlayLayers.labels = viewer.imageryLayers.addImageryProvider(tile('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', 19));
+  const add = (layer) => (viewer.imageryLayers.add(layer), layer);
+  if (key === 'labels') overlayLayers.labels = add(imageryLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'));
   if (key === 'grid') overlayLayers.grid = viewer.imageryLayers.addImageryProvider(new Cesium.GridImageryProvider({ color: Cesium.Color.fromCssColorString('#3ef0ff').withAlpha(0.3), glowColor: Cesium.Color.TRANSPARENT, cells: 2 }));
-  if (key === 'oceanRef') overlayLayers.oceanRef = viewer.imageryLayers.addImageryProvider(tile('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}', 13));
+  if (key === 'oceanRef') overlayLayers.oceanRef = add(imageryLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}'));
 }
 function orderOverlays() {
   const g = findGlobe(state.globe);
