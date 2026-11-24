@@ -21,7 +21,10 @@ function createWindow() {
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 14, y: 11 },
     webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, 'preload.cjs') },
+    // KJX_TEST_HIDDEN=1: automated tests render without putting a window on screen.
+    show: !process.env.KJX_TEST_HIDDEN,
   });
+  if (process.env.KJX_TEST_HIDDEN && app.dock) app.dock.hide();
   win.setWindowButtonVisibility(false); // traffic lights appear with the auto-hiding top bar
   win.on('enter-full-screen', () => win.webContents.send('ui:fullscreen', true));
   win.on('leave-full-screen', () => { win.webContents.send('ui:fullscreen', false); win.setWindowButtonVisibility(false); });

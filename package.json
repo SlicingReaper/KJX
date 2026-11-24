@@ -9,7 +9,7 @@
     "data:wikidata": "node scripts/fetch-wikidata.mjs && node scripts/fetch-wikidata.mjs --groups=scuttled,disaster,rail,reef,dive --out=wikidata-extra.json && node scripts/fetch-wikidata.mjs --groups=phantom,mythplace --out=wikidata-myths.json",
     "data:build": "node scripts/build-data.mjs",
     "data": "npm run data:wikidata && npm run data:noaa && npm run data:osm && npm run data:verify && npm run data:build",
-    "app": "node scripts/ensure-electron.mjs && vite build && electron .",
+    "app": "node scripts/ensure-electron.mjs && vite build && node scripts/dev-app.mjs",
     "package": "node scripts/ensure-electron.mjs && vite build && electron-builder --mac --dir",
     "data:noaa": "node scripts/fetch-noaa.mjs",
     "data:osm": "node scripts/fetch-osm.mjs",

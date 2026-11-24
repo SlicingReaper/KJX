@@ -35,7 +35,7 @@ You need **Node.js 22.12 or newer** (the current LTS from [nodejs.org](https://n
 git clone https://github.com/SlicingReaper/KJX.git
 cd KJX
 npm install
-npm run app        # opens the desktop app
+npm run app        # opens the desktop app (on macOS as a renamed "KJX" dev copy, so the Dock says KJX, not Electron)
 ```
 
 Other commands:
